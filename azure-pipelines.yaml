@@ -91,8 +91,10 @@ parameters:
         destroyDependsOn: 'Precheck'
 
 variables:
+  # Must exceed the longest resource timeout (the 3600s DB Run Command) to
+  # leave room for init, VM/extension provisioning and the command itself.
   - name: timeoutInMinutes
-    value: 60
+    value: 120
   - name: agentImage
     value: ubuntu-latest
   - name: product

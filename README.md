@@ -62,7 +62,12 @@ Traffic cutover and rollback are controlled by backend pool membership on the re
 
 ## Temporary migration VMs
 
-`mcol-dbmig-vm01-{env}` sits in the data subnet in zone 1, so its upgraded data disk can be attached to the zone 1 primary. It accepts SSH and Oracle traffic from the legacy MCOL data subnet for the migration; the matching rule on the legacy `MCOL-DATA-NSG` is in oracle-azure-infrastructure (`mcol-tr-migration-allow-in`). Remove the VM from `db_vms`, and both rules, once migration is complete.
+`mcol-dbmig-vm01-{env}` sits in the data subnet in zone 1, so its upgraded data disk can be attached to the zone 1 primary. It accepts SSH and Oracle traffic from the legacy MCOL data subnet for the migration; the matching rule on the legacy `MCOL-DATA-NSG` is in oracle-azure-infrastructure (`mcol-tr-migration-allow-in`). Once migration is complete, retire the VM in this order, because its data disks are managed by the VM's own entry in `db_vms` and removing the entry would otherwise plan their destruction:
+
+1. The CGI DBA team detaches the upgraded data disk(s) from the migration VM and attaches them to the primary (outside Terraform).
+2. List the migration VM's disk resources with `terraform state list | grep dbmig` (in the `vm` component for that environment) and `terraform state rm` the managed disk and data-disk attachment entries for each disk that has been transferred, so Terraform stops tracking them.
+3. Remove the VM from `db_vms`, and both NSG rules.
+4. Check the plan: it must destroy only the migration VM, its NIC and its OS disk (and any untransferred disks), and must not destroy any transferred disk.
 
 ## VM Access
 
