@@ -38,12 +38,13 @@ set_swap_space_main() {
     (umask 077
      fallocate -l "${SWAP_SIZE_MB}M" "$SWAP_FILE" 2>/dev/null \
        || dd if=/dev/zero of="$SWAP_FILE" bs=1M count="$SWAP_SIZE_MB" status=none)
-    chmod 600 "$SWAP_FILE"
-    mkswap "$SWAP_FILE" >/dev/null
   fi
   chmod 600 "$SWAP_FILE"
 
   if [[ "$active" -eq 0 ]]; then
+    # An inactive file may be uninitialised (e.g. an interrupted earlier run),
+    # so always (re)write the swap signature before enabling it.
+    mkswap "$SWAP_FILE" >/dev/null
     swapon "$SWAP_FILE"
     log "enabled swap on $SWAP_FILE"
   fi

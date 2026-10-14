@@ -27,9 +27,10 @@ log() { echo "[mcol-run-command] $*"; }
 die() { echo "[mcol-run-command] ERROR: $*" >&2; exit 1; }
 
 # Idempotently ensure <device> <path> <fstype> <opts> 0 0 is the only fstab
-# entry for <path>.
+# entry for <path>. Sets md_fstab_changed=1 when fstab was rewritten.
 md_ensure_fstab_entry() {
   local src="$1" path="$2" fstype="$3" opts="$4"
+  md_fstab_changed=0
   local tmp
   tmp="$(mktemp)"
   # Drop any existing (commented or not) entry whose mount point is $path,
@@ -38,6 +39,7 @@ md_ensure_fstab_entry() {
   printf '%s %s %s %s 0 0\n' "$src" "$path" "$fstype" "$opts" >> "$tmp"
   if ! cmp -s "$tmp" /etc/fstab; then
     cat "$tmp" > /etc/fstab
+    md_fstab_changed=1
     log "fstab: updated entry for $path ($src)"
   else
     log "fstab: entry for $path already correct"
@@ -98,7 +100,13 @@ mount_drives_main() {
     # findmnt reports the resolved device (/dev/sdX), not the
     # /dev/disk/azure/... symlink we were given, so compare resolved paths.
     if [[ -n "$current_src" && "$(readlink -f "$current_src")" == "$(readlink -f "$src")" ]]; then
-      log "$path already mounted from $src"
+      if [[ "$md_fstab_changed" -eq 1 ]]; then
+        # fstab options changed; apply them to the live mount.
+        mount -o remount "$path" || die "failed to remount $path with updated options"
+        log "$path remounted to apply updated fstab options"
+      else
+        log "$path already mounted from $src"
+      fi
     else
       if [[ -n "$current_src" ]]; then
         log "$path mounted from unexpected source $current_src — remounting from $src"

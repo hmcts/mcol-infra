@@ -76,8 +76,12 @@ if grep -qE "^${REMOTE//\//\\/}[[:space:]]" /etc/fstab && \
    [[ "$(grep -E "^${REMOTE//\//\\/}[[:space:]]" /etc/fstab | head -1)" == "$fstab_line" ]]; then
   log "fstab entry already correct"
 else
-  # Remove any stale entry for this share/mount point, then add the desired one.
-  sed -i "\|^${REMOTE} |d" /etc/fstab
+  # Remove any stale entry for this share or mount point (e.g. a previous
+  # storage account), keeping comments, then add the desired one.
+  tmp_fstab="$(mktemp)"
+  awk -v remote="$REMOTE" -v mp="$MOUNT_DIR" '$1 ~ /^#/ || ($1 != remote && $2 != mp)' /etc/fstab > "$tmp_fstab"
+  cat "$tmp_fstab" > /etc/fstab
+  rm -f "$tmp_fstab"
   printf '%s\n' "$fstab_line" >> /etc/fstab
   needs_remount=1
   log "fstab: updated entry for $REMOTE on $MOUNT_DIR"
