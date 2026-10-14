@@ -74,8 +74,10 @@ fi
 chmod 600 "$CRED_FILE"
 
 fstab_line="${REMOTE} ${MOUNT_DIR} cifs nofail,${CIFS_OPTS} 0 0"
-if grep -qE "^${REMOTE//\//\\/}[[:space:]]" /etc/fstab && \
-   [[ "$(grep -E "^${REMOTE//\//\\/}[[:space:]]" /etc/fstab | head -1)" == "$fstab_line" ]]; then
+# Correct only if exactly one non-comment entry references this share or mount
+# point and it is the desired line (duplicates/stale entries force a rewrite).
+fstab_matches="$(awk -v remote="$REMOTE" -v mp="$MOUNT_DIR" '$1 !~ /^#/ && ($1 == remote || $2 == mp)' /etc/fstab)"
+if [[ "$fstab_matches" == "$fstab_line" ]]; then
   log "fstab entry already correct"
 else
   # Remove any stale entry for this share or mount point (e.g. a previous

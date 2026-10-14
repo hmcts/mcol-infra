@@ -28,7 +28,7 @@ set_swap_space_main() {
 
   # swapfile size is the file size minus the 4KiB swap header page.
   local active=0
-  if swapon --noheadings --show=NAME | grep -qx "$SWAP_FILE"; then active=1; fi
+  if swapon --noheadings --show=NAME | grep -qxF -- "$SWAP_FILE"; then active=1; fi
 
   if [[ -f "$SWAP_FILE" && "$(stat -c %s "$SWAP_FILE")" -eq "$want_bytes" ]]; then
     log "$SWAP_FILE already ${SWAP_SIZE_MB}MB"
@@ -53,7 +53,7 @@ set_swap_space_main() {
   local fstab_line="${SWAP_FILE} none swap sw 0 0"
   # Enforce the exact line: drop any existing entry for this swapfile (which
   # might carry e.g. noauto), then append the desired one if it differs.
-  if [[ "$(grep -E "^${SWAP_FILE}[[:space:]]" /etc/fstab || true)" != "$fstab_line" ]]; then
+  if [[ "$(awk -v f="$SWAP_FILE" '$1 !~ /^#/ && $1 == f' /etc/fstab)" != "$fstab_line" ]]; then
     local tmp_fstab
     tmp_fstab="$(mktemp)"
     awk -v f="$SWAP_FILE" '$1 ~ /^#/ || $1 != f' /etc/fstab > "$tmp_fstab"
@@ -63,7 +63,7 @@ set_swap_space_main() {
     log "fstab: set entry for $SWAP_FILE"
   fi
 
-  swapon --noheadings --show=NAME | grep -qx "$SWAP_FILE" || die "swap is not active on $SWAP_FILE"
+  swapon --noheadings --show=NAME | grep -qxF -- "$SWAP_FILE" || die "swap is not active on $SWAP_FILE"
   swapon --show
   log "set-swap-space complete"
 }
