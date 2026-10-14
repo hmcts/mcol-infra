@@ -1,0 +1,123 @@
+trigger:
+  batch: true
+  branches:
+    include:
+      - main
+
+pr:
+  - main
+
+schedules:
+  - cron: "0 18 * * 1-5"
+    displayName: Daily 6pm build
+    branches:
+      include:
+        - main
+    always: "true"
+
+resources:
+  repositories:
+    - repository: cnp-azuredevops-libraries
+      type: github
+      ref: refs/heads/master
+      name: hmcts/cnp-azuredevops-libraries
+      endpoint: 'hmcts'
+
+parameters:
+  - name: overrideAction
+    type: string
+    default: plan
+    values:
+      - plan
+      - apply
+      - destroy
+  - name: environment_components
+    type: object
+    default:
+      - deployment: 'stg_core'
+        environment: 'stg'
+        component: 'core'
+        service_connection: 'DTS-HERITAGE-EXTSVC-STG'
+        dependsOn: 'Precheck'
+      - deployment: 'stg_vm'
+        environment: 'stg'
+        component: 'vm'
+        service_connection: 'DTS-HERITAGE-EXTSVC-STG'
+        dependsOn: 'stg_core'
+      - deployment: 'stg_load_balancer'
+        environment: 'stg'
+        component: 'load-balancer'
+        service_connection: 'DTS-HERITAGE-EXTSVC-STG'
+        dependsOn: 'stg_vm'
+      - deployment: 'stg_rbac'
+        environment: 'stg'
+        component: 'rbac'
+        service_connection: 'ops-approval-gate-stg-envs'
+        dependsOn: 'stg_vm'
+      - deployment: 'prod_core'
+        environment: 'prod'
+        component: 'core'
+        service_connection: 'DTS-HERITAGE-EXTSVC-PROD'
+        dependsOn:
+          - 'stg_load_balancer'
+          - 'stg_rbac'
+      - deployment: 'prod_vm'
+        environment: 'prod'
+        component: 'vm'
+        service_connection: 'DTS-HERITAGE-EXTSVC-PROD'
+        dependsOn:
+          - 'prod_core'
+      - deployment: 'prod_load_balancer'
+        environment: 'prod'
+        component: 'load-balancer'
+        service_connection: 'DTS-HERITAGE-EXTSVC-PROD'
+        dependsOn: 'prod_vm'
+      - deployment: 'prod_rbac'
+        environment: 'prod'
+        component: 'rbac'
+        service_connection: 'ops-approval-gate-prod-envs'
+        dependsOn: 'prod_vm'
+
+variables:
+  - name: timeoutInMinutes
+    value: 60
+  - name: agentImage
+    value: ubuntu-latest
+  - name: product
+    value: mcol
+  - name: terraformInitSubscription
+    value: 04d27a32-7a07-48b3-95b8-3c8691e1a263
+  - template: vars/input-variables.yaml@cnp-azuredevops-libraries
+
+stages:
+  - stage: Precheck
+    jobs:
+      - job: TerraformPrecheck
+        pool:
+          vmImage: ${{ variables.agentImage }}
+        steps:
+          - template: steps/terraform-precheck.yaml@cnp-azuredevops-libraries
+            parameters:
+              keyvaultName: 'infra-vault-nonprod'
+              keyvaultSecret: 'azure-devops-sp-token'
+              serviceConnection: 'azurerm-sandbox'
+              overrideAction: ${{ parameters.overrideAction }}
+
+  - ${{ each deployment in parameters.environment_components }}:
+    - stage: ${{ deployment.deployment }}
+      dependsOn: ${{ deployment.dependsOn }}
+      jobs:
+        - job: TerraformPlanApply
+          pool: hmcts-sds-ptl
+          timeoutInMinutes: ${{ variables.timeoutInMinutes }}
+          steps:
+            - template: steps/terraform.yaml@cnp-azuredevops-libraries
+              parameters:
+                overrideAction: ${{ parameters.overrideAction }}
+                environment: ${{ deployment.environment }}
+                component: ${{ deployment.component }}
+                serviceConnection: ${{ deployment.service_connection }}
+                terraformInitSubscription: ${{ variables.terraformInitSubscription }}
+                product: ${{ variables.product }}
+                planCommandOptions:
+                  -compact-warnings
