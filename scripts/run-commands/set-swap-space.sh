@@ -21,9 +21,9 @@ die() { echo "[mcol-run-command] ERROR: $*" >&2; exit 1; }
 set_swap_space_main() {
   local SWAP_SIZE_MB="${SWAP_SIZE_MB:-10240}"
   local SWAP_FILE="${SWAP_FILE:-/swapfile}"
-  local want_bytes=$((SWAP_SIZE_MB * 1024 * 1024))
 
-  [[ "$SWAP_SIZE_MB" =~ ^[0-9]+$ && "$SWAP_SIZE_MB" -gt 0 ]] || die "SWAP_SIZE_MB must be a positive integer"
+  [[ "$SWAP_SIZE_MB" =~ ^[1-9][0-9]{0,8}$ ]] || die "SWAP_SIZE_MB must be a positive integer"
+  local want_bytes=$((SWAP_SIZE_MB * 1024 * 1024))
 
   # swapfile size is the file size minus the 4KiB swap header page.
   local active=0
