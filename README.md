@@ -52,6 +52,10 @@ All subnets use the `mcol-rt-{env}` route table, which sends traffic to the hub 
 
 All VMs have a 64 GiB Premium SSD OS disk. Production Oracle data disks mirror the legacy PMCOL database servers (128, 512 and 32 GiB Premium SSD plus a 512 GiB Standard SSD export volume on each node); Pre-Production uses the same LUN layout sized for the pre-production estate. Final capacity, IOPS and mount points remain subject to CGI DBA team confirmation per the LLD.
 
+## First deployment
+
+Components depend on each other through data sources (`vm`, `load-balancer` and `rbac` read the subnets, key vault and backup policy created by `core`; `core` for prod is gated on stg). On a fresh environment a plan-only run therefore cannot succeed for the dependent components, because the resources they look up do not exist yet. This is the same behaviour as the reference `sdrs-infra` / `crime-portal-infra` pipelines. Bootstrap by running the pipeline manually from `main` with `overrideAction: apply`: stages run in dependency order (`stg_core` → `stg_vm` → `stg_load_balancer`/`stg_rbac` → `prod_core` → …), so each stage creates what the next one reads. Once an environment exists, normal PR plans work for all components. Until then, expect the `vm`, `load-balancer` and `rbac` plans for that environment to fail on missing data sources.
+
 ## Load balancer cutover
 
 Traffic cutover and rollback are controlled by backend pool membership on the retained load balancers (`{n,p}mcol-pri-lb-01` web, `{n,p}mcol-pri-lb-02` application):
