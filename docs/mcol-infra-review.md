@@ -13,14 +13,12 @@
 
 ## Verdict
 
-The implementation is in good shape. It is a faithful mirror of the sdrs-infra / crime-portal-infra patterns and lines up with the LLD. Two issues were found and fixed (left uncommitted in the working copy); a small number of items are flagged for awareness but deliberately not changed.
+The implementation is in good shape. It is a faithful mirror of the sdrs-infra / crime-portal-infra patterns and lines up with the LLD. Two issues were found and fixed during the review; a small number of items are flagged for awareness but deliberately not changed.
 
-## Fixes applied (uncommitted in working copy)
+## Fixes applied during review
 
 1. **`azure-pipelines.yaml` — added the nightly drift-detection schedule.** Both reference repos run the pipeline at 18:00 on weekdays with `always: true` so drift gets surfaced by a plan. MCOL was the only one without it. Added the identical `schedules` block (cron `0 18 * * 1-5`).
 2. **`README.md` — corrected the data-disk claim.** It said Oracle data disks "match the legacy MCOL database servers in each environment". That is true for prod (lun10 128 GiB / lun11 512 GiB / lun12 32 GiB Premium, lun14 512 GiB Standard — exactly the legacy PMCOL set), but the legacy stg DB has a single 128 GiB disk while the new stg build has four. Reworded to state the prod mirroring explicitly and that final capacity remains subject to CGI DBA confirmation per the LLD.
-
-A local git repo was initialised and the implementation committed as a baseline before these edits; the two fixes are the only uncommitted changes.
 
 ## Verified correct (no action needed)
 

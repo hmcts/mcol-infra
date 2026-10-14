@@ -11,7 +11,8 @@ set -euo pipefail
 # work happens in mount_drives_main, invoked by the self-execution guard at
 # the bottom of this file when run standalone.
 #
-# Parameters (passed to Azure Run Command as name=value pairs, or exported):
+# Parameters (exported as environment variables, or passed positionally as
+# Azure Run Command does: $1=MOUNTS, $2=DIR_MODE; exported values win):
 #   MOUNTS    Required. Semicolon-separated list of
 #             <device>:<mount-path>[:<fstype>[:<opts>]]
 #             Defaults when omitted: fstype=ext4, opts=defaults,nofail
@@ -48,8 +49,8 @@ md_ensure_fstab_entry() {
 }
 
 mount_drives_main() {
-  local MOUNTS="${MOUNTS:-}"
-  local DIR_MODE="${DIR_MODE:-0777}"
+  local MOUNTS="${MOUNTS:-${1:-}}"
+  local DIR_MODE="${DIR_MODE:-${2:-0777}}"
   # stat reports modes without the leading zero (0777 -> "777")
   local DIR_MODE_OCTAL="${DIR_MODE#0}"
 

@@ -108,8 +108,19 @@ az vm run-command invoke \
   --scripts @scripts/run-commands/oracle-prereqs-rhel9.sh
 ```
 
-Parameters are exported to the script as environment variables — pass them
-with repeated `--parameters name=value` flags.
+Azure Run Command passes `--parameters` values to the script as positional
+arguments (`$1`, `$2`, …), not as environment variables. The standalone scripts
+accept either: export the named variables, or pass values in this order
+(exported variables win):
+
+| Script | Positional order |
+| ------ | ---------------- |
+| `mount-drives.sh` | `MOUNTS`, `DIR_MODE` |
+| `mount-azure-fileshare.sh` | `STORAGE_ACCOUNT_NAME`, `STORAGE_ACCOUNT_KEY`, `FILE_SHARE` |
+| `set-swap-space.sh` | `SWAP_SIZE_MB`, `SWAP_FILE` |
+
+The combined entrypoints used by Terraform map their own positional order (see
+`entrypoints/*.sh`).
 
 ## Parameters
 

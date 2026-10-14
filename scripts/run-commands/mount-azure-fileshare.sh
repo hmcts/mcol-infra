@@ -8,7 +8,9 @@
 # The legacy setup playbook mounted this share on every MCOL VM. Keep it in
 # the combined setup for the full migration and coexistence path.
 #
-# Parameters (passed to Azure Run Command as name=value pairs, or exported):
+# Parameters (exported as environment variables, or passed positionally as
+# Azure Run Command does: $1=STORAGE_ACCOUNT_NAME, $2=STORAGE_ACCOUNT_KEY,
+# $3=FILE_SHARE; exported values win):
 #   STORAGE_ACCOUNT_NAME  Required. Storage account name.
 #   STORAGE_ACCOUNT_KEY   Required. Storage account key (pass via the
 #                         `protected_parameter` block of
@@ -43,9 +45,9 @@ ensure_cifs_utils() {
 }
 
 mount_azure_fileshare_main() {
-STORAGE_ACCOUNT_NAME="${STORAGE_ACCOUNT_NAME:-}"
-STORAGE_ACCOUNT_KEY="${STORAGE_ACCOUNT_KEY:-}"
-FILE_SHARE="${FILE_SHARE:-build}"
+STORAGE_ACCOUNT_NAME="${STORAGE_ACCOUNT_NAME:-${1:-}}"
+STORAGE_ACCOUNT_KEY="${STORAGE_ACCOUNT_KEY:-${2:-}}"
+FILE_SHARE="${FILE_SHARE:-${3:-build}}"
 
 [[ -n "$STORAGE_ACCOUNT_NAME" ]] || die "STORAGE_ACCOUNT_NAME is not set"
 [[ -n "$STORAGE_ACCOUNT_KEY" ]]  || die "STORAGE_ACCOUNT_KEY is not set"

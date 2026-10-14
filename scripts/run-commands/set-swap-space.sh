@@ -10,7 +10,8 @@ set -euo pipefail
 # Can be executed directly or concatenated with other mcol run-command
 # scripts and driven from an entrypoint (set_swap_space_main).
 #
-# Parameters (passed to Azure Run Command as name=value pairs, or exported):
+# Parameters (exported as environment variables, or passed positionally as
+# Azure Run Command does: $1=SWAP_SIZE_MB, $2=SWAP_FILE; exported values win):
 #   SWAP_SIZE_MB  Size of the swapfile in MB (default 10240, the legacy MCOL
 #                 web/app-layer value; the data layer used 16384)
 #   SWAP_FILE     Swapfile path (default /swapfile)
@@ -19,8 +20,8 @@ log() { echo "[mcol-run-command] $*"; }
 die() { echo "[mcol-run-command] ERROR: $*" >&2; exit 1; }
 
 set_swap_space_main() {
-  local SWAP_SIZE_MB="${SWAP_SIZE_MB:-10240}"
-  local SWAP_FILE="${SWAP_FILE:-/swapfile}"
+  local SWAP_SIZE_MB="${SWAP_SIZE_MB:-${1:-10240}}"
+  local SWAP_FILE="${SWAP_FILE:-${2:-/swapfile}}"
 
   [[ "$SWAP_SIZE_MB" =~ ^[1-9][0-9]{0,8}$ ]] || die "SWAP_SIZE_MB must be a positive integer"
   local want_bytes=$((SWAP_SIZE_MB * 1024 * 1024))
@@ -50,9 +51,16 @@ set_swap_space_main() {
   fi
 
   local fstab_line="${SWAP_FILE} none swap sw 0 0"
-  if ! grep -qE "^${SWAP_FILE}[[:space:]]+none[[:space:]]+swap[[:space:]]" /etc/fstab; then
-    printf '%s\n' "$fstab_line" >> /etc/fstab
-    log "fstab: added $SWAP_FILE"
+  # Enforce the exact line: drop any existing entry for this swapfile (which
+  # might carry e.g. noauto), then append the desired one if it differs.
+  if [[ "$(grep -E "^${SWAP_FILE}[[:space:]]" /etc/fstab || true)" != "$fstab_line" ]]; then
+    local tmp_fstab
+    tmp_fstab="$(mktemp)"
+    awk -v f="$SWAP_FILE" '$1 ~ /^#/ || $1 != f' /etc/fstab > "$tmp_fstab"
+    printf '%s\n' "$fstab_line" >> "$tmp_fstab"
+    cat "$tmp_fstab" > /etc/fstab
+    rm -f "$tmp_fstab"
+    log "fstab: set entry for $SWAP_FILE"
   fi
 
   swapon --noheadings --show=NAME | grep -qx "$SWAP_FILE" || die "swap is not active on $SWAP_FILE"
