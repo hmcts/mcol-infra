@@ -268,6 +268,15 @@ EOF
         changed=1
       fi
     done
+    # Reload whenever the running config differs from the permanent config,
+    # not only when permanent rules changed in this run, so a previously failed
+    # reload is retried.
+    if [[ "$fw_running" -eq 1 && "$changed" -eq 0 ]]; then
+      if firewall-cmd --query-icmp-block=echo-request >/dev/null 2>&1; then changed=1; fi
+      for port in 1159 1521 3872 4889 7788 7799 9788 9851; do
+        if ! firewall-cmd --zone=public --query-port="${port}/tcp" >/dev/null 2>&1; then changed=1; fi
+      done
+    fi
     if [[ "$changed" -eq 1 && "$fw_running" -eq 1 ]]; then
       firewall-cmd --reload
       log "firewalld rules applied and reloaded"

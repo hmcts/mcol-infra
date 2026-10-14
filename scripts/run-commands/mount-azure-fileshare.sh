@@ -91,12 +91,21 @@ else
   log "fstab: updated entry for $REMOTE on $MOUNT_DIR"
 fi
 
+# A pending marker survives a failed unmount/mount so the next run retries
+# applying the new credentials/options even though the files now look current.
+PENDING_DIR=/var/lib/mcol-run-command
+PENDING_MARKER="${PENDING_DIR}/remount-fileshare-${FILE_SHARE}"
+mkdir -p "$PENDING_DIR"
+if [[ "$needs_remount" -eq 1 ]]; then touch "$PENDING_MARKER"; fi
+[[ ! -e "$PENDING_MARKER" ]] || needs_remount=1
+
 current_src="$(findmnt -rn -M "$MOUNT_DIR" -o SOURCE 2>/dev/null || true)"
 if [[ "$current_src" == "$REMOTE" && "$needs_remount" -eq 0 ]]; then
   log "$MOUNT_DIR already mounted"
 else
-  [[ -z "$current_src" ]] || umount "$MOUNT_DIR"
+  [[ -z "$current_src" ]] || umount "$MOUNT_DIR" || die "failed to unmount $MOUNT_DIR (will retry on next run)"
   mount "$MOUNT_DIR"
+  rm -f "$PENDING_MARKER"
   log "mounted $REMOTE on $MOUNT_DIR"
 fi
 

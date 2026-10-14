@@ -56,7 +56,7 @@ mount_drives_main() {
 
   [[ -n "$MOUNTS" ]] || die "MOUNTS is not set"
 
-  local entry src path fstype opts current_mode current_src existing
+  local entry src path fstype opts current_mode current_src existing md_marker
   local -a md_specs
   IFS=';' read -ra md_specs <<< "$MOUNTS"
   for entry in "${md_specs[@]}"; do
@@ -101,9 +101,15 @@ mount_drives_main() {
     # findmnt reports the resolved device (/dev/sdX), not the
     # /dev/disk/azure/... symlink we were given, so compare resolved paths.
     if [[ -n "$current_src" && "$(readlink -f "$current_src")" == "$(readlink -f "$src")" ]]; then
-      if [[ "$md_fstab_changed" -eq 1 ]]; then
+      # A pending marker (written when fstab changes, cleared once the remount
+      # succeeds) makes a failed remount retry on the next run.
+      md_marker="/var/lib/mcol-run-command/remount-${path//\//_}"
+      mkdir -p /var/lib/mcol-run-command
+      if [[ "$md_fstab_changed" -eq 1 ]]; then touch "$md_marker"; fi
+      if [[ -e "$md_marker" ]]; then
         # fstab options changed; apply them to the live mount.
-        mount -o remount "$path" || die "failed to remount $path with updated options"
+        mount -o remount "$path" || die "failed to remount $path with updated options (will retry on next run)"
+        rm -f "$md_marker"
         log "$path remounted to apply updated fstab options"
       else
         log "$path already mounted from $src"
