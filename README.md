@@ -97,7 +97,9 @@ swapfile and firewall handling. The `vm` component creates one
 setup: the full combined script on the database VMs, and a share-mount plus
 swapfile script on the Ubuntu web/app Docker hosts. The legacy Azure Files share
 key is passed to each command through a protected parameter sourced from the
-secure `TF_VAR_fileshare_storage_account_key` pipeline variable. The separate
+secure `TF_VAR_fileshare_storage_account_key` pipeline variable, which
+`azure-pipelines.yaml` maps explicitly into the `vm` component's Terraform
+environment. The separate
 XDR run command is created inside the virtual-machines module. See
 `scripts/run-commands/README.md` for the per-VM-type matrix and usage.
 
