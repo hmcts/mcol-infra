@@ -91,11 +91,11 @@ The following software is installed on the VMs using virtual machine extensions:
 Idempotent Run Command scripts ported from the legacy estate's setup Ansible
 (oracle-azure-infrastructure) live in `scripts/run-commands/`. They cover the
 per-tier, per-base-image configuration that the legacy Packer images used to
-carry — Oracle prerequisites for RHEL 7 and RHEL 9, data-disk mounting,
-waagent swap and firewall handling. The `vm` component creates one
+carry — Oracle prerequisites for RHEL 7 and RHEL 9, data-disk mounting
+and firewall handling. The `vm` component creates one
 `azurerm_virtual_machine_run_command` per VM that needs post-deployment
-setup: the full combined script on the database VMs, and a share-mount plus
-swap script on the Ubuntu web/app Docker hosts. The legacy Azure Files share
+setup: the full combined script on the database VMs, and a share-mount
+script on the Ubuntu web/app Docker hosts. The legacy Azure Files share
 key is passed to each command through a protected parameter sourced from the
 secure `TF_VAR_fileshare_storage_account_key` pipeline variable. The separate
 XDR run command is created inside the virtual-machines module. See

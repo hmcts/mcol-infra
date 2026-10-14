@@ -22,7 +22,6 @@ on failure.
 | `oracle-prereqs-rhel7.sh` | `oracle-config-rhel7` | As above for EL 7, plus the firewalld ICMP/port rules the RHEL 7 role applied |
 | `disable-firewall.sh` | `disable-firewall` | Stops and disables `firewalld`; NSGs enforce network policy |
 | `mount-drives.sh` | `mount-drives` | Formats (only if unformatted) and persistently mounts data disks |
-| `set-swap-space.sh` | `set-swap-space` | Configures waagent resource-disk swap; restarts the agent only on change |
 | `mount-azure-fileshare.sh` | `mount-azure-fileshare` | Mounts the legacy `storheritage003/build` share over CIFS on each MCOL VM |
 
 The Oracle scripts refuse to run on the wrong major OS version, so the RHEL 7
@@ -32,20 +31,20 @@ and RHEL 9 variants cannot be applied to each other's VMs by mistake.
 
 | VM type | Base image | Scripts |
 | ------- | ---------- | ------- |
-| `mcol-db-vm01/02` (Oracle 19c primary/standby) | RHEL 9.6 | combined `db-rhel9` run command (wired): `mount-drives` → `mount-azure-fileshare` → `set-swap-space` → `oracle-prereqs-rhel9` → `disable-firewall` |
-| `mcol-dbmig-vm01` (temporary 12c restore/upgrade) | RHEL 7.9 | combined `dbmig-rhel7` run command (wired): `mount-drives` → `mount-azure-fileshare` → `set-swap-space` → `oracle-prereqs-rhel7` |
-| `mcol-web/app-vm01/02` (Docker hosts) | Ubuntu 22.04 | combined `docker-host` run command (wired): `mount-azure-fileshare` → `set-swap-space` |
+| `mcol-db-vm01/02` (Oracle 19c primary/standby) | RHEL 9.6 | combined `db-rhel9` run command (wired): `mount-drives` → `mount-azure-fileshare` → `oracle-prereqs-rhel9` → `disable-firewall` |
+| `mcol-dbmig-vm01` (temporary 12c restore/upgrade) | RHEL 7.9 | combined `dbmig-rhel7` run command (wired): `mount-drives` → `mount-azure-fileshare` → `oracle-prereqs-rhel7` |
+| `mcol-web/app-vm01/02` (Docker hosts) | Ubuntu 22.04 | combined `docker-host` run command (wired): `mount-azure-fileshare` |
 
-The web/app VMs are Ubuntu, not RHEL — despite that, `set-swap-space.sh` applies
-because it only touches the Azure Linux Agent (`waagent`/`walinuxagent`), which
-runs on both.
+No waagent resource-disk swap is configured on any VM: the SKUs specified by
+the LLD (`Standard_D2s_v6`, `Standard_D4s_v6`, `Standard_E4-2s_v5`) have no local
+temporary disk for the agent to host swap on.
 
-For the DB VMs, mount points and swap sizes remain subject to CGI DBA
+For the DB VMs, mount points remain subject to CGI DBA
 confirmation per the LLD (see the main README). The legacy PMCOL data-layer
 layout these scripts were ported from is a useful starting reference:
 
 ```text
-/dev/sdc -> /opt/moj   (waagent swap 16384MB on data layer, 10240 on web/app)
+/dev/sdc -> /opt/moj
 /dev/sdd -> /u01
 /dev/sde -> /u02
 /dev/sdf -> /backup
@@ -58,15 +57,15 @@ layout these scripts were ported from is a useful starting reference:
 `components/vm/30-run-commands.tf` creates **one**
 `azurerm_virtual_machine_run_command` per database VM. Each run command's
 script is the per-OS-type combination of the per-step scripts above —
-`mount-drives` + `set-swap-space` + `oracle-prereqs-<rhel>` (+ `disable-firewall`
+`mount-drives` + `oracle-prereqs-<rhel>` (+ `disable-firewall`
 on RHEL 9) — assembled in Terraform with `file()` + `join()` from
 `entrypoints/_prologue.sh`, the step scripts, and a per-type entrypoint last:
 
 | Combined script | VMs | Steps |
 | --------------- | --- | ----- |
-| `entrypoints/db-rhel9.sh` | `mcol-db-vm01/02` (RHEL 9.6) | mount drives → Azure Files → swap → Oracle prereqs → disable firewall |
-| `entrypoints/dbmig-rhel7.sh` | `mcol-dbmig-vm01` (RHEL 7.9) | mount drives → Azure Files → swap → Oracle prereqs |
-| `entrypoints/docker-host.sh` | `mcol-web/app-vm01/02` (Ubuntu 22.04) | Azure Files → swap |
+| `entrypoints/db-rhel9.sh` | `mcol-db-vm01/02` (RHEL 9.6) | mount drives → Azure Files → Oracle prereqs → disable firewall |
+| `entrypoints/dbmig-rhel7.sh` | `mcol-dbmig-vm01` (RHEL 7.9) | mount drives → Azure Files → Oracle prereqs |
+| `entrypoints/docker-host.sh` | `mcol-web/app-vm01/02` (Ubuntu 22.04) | Azure Files |
 
 The scripts are function-based: each defines a `*_main` and only self-executes
 when run directly (the `_prologue.sh` marker suppresses that in the combined
@@ -74,7 +73,7 @@ context), so concatenation runs each step exactly once, in entrypoint order.
 
 The DB run commands receive `MOUNTS` (lun-based, derived from each VM's
 `data_disks` `mount_path`s, mirroring the legacy PMCOL data layer, pending CGI
-DBA confirmation) and `SWAP_SIZE_MB=16384` as parameters. All run commands
+DBA confirmation) as a parameter. All run commands
 receive the legacy share name and share path as public parameters and the
 storage account key as a protected parameter. The key must be supplied to
 Terraform as the secure Azure DevOps variable `TF_VAR_fileshare_storage_account_key`;
@@ -108,16 +107,7 @@ az vm run-command invoke \
 ```
 
 Parameters are exported to the script as environment variables — pass them
-with repeated `--parameters name=value` flags:
-
-```bash
-az vm run-command invoke \
-  --resource-group mcol-rg-prod \
-  --name mcol-db-vm01-prod \
-  --command-id RunShellScript \
-  --parameters SWAP_SIZE_MB=16384 \
-  --scripts @scripts/run-commands/set-swap-space.sh
-```
+with repeated `--parameters name=value` flags.
 
 ## Parameters
 
@@ -139,16 +129,6 @@ Example (legacy PMCOL data-layer layout):
 ```bash
 MOUNTS="/dev/disk/azure/scsi1/lun10:/opt/moj;/dev/disk/azure/scsi1/lun11:/u01;/dev/disk/azure/scsi1/lun12:/u02;/dev/disk/azure/scsi1/lun14:/backup"
 ```
-
-### `set-swap-space.sh`
-
-| Parameter | Default | Purpose |
-| --------- | ------- | ------- |
-| `SWAP_SIZE_MB` | `10240` | Swapfile size in MB (legacy data layer used `16384`) |
-| `RESOURCE_DISK_FORMAT` | `y` | Format the resource disk if unformatted |
-| `RESOURCE_DISK_FS` | `ext4` | Resource disk filesystem |
-| `RESOURCE_DISK_MOUNT` | `/mnt/resource` | Resource disk mount point |
-| `ENABLE_SWAP` | `y` | Create and use the swapfile |
 
 ### `mount-azure-fileshare.sh`
 

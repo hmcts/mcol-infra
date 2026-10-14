@@ -11,24 +11,20 @@ mcol_main() {
   # to the names the component scripts read. Already-set variables win.
   if [[ -z "${MOUNTS:-}" && $# -ge 1 ]]; then MOUNTS="${1}"; fi
   export MOUNTS
-  if [[ -z "${SWAP_SIZE_MB:-}" && $# -ge 2 ]]; then SWAP_SIZE_MB="${2}"; fi
-  export SWAP_SIZE_MB
-  if [[ -z "${STORAGE_ACCOUNT_NAME:-}" && $# -ge 3 ]]; then STORAGE_ACCOUNT_NAME="${3}"; fi
+  if [[ -z "${STORAGE_ACCOUNT_NAME:-}" && $# -ge 2 ]]; then STORAGE_ACCOUNT_NAME="${2}"; fi
   export STORAGE_ACCOUNT_NAME
-  if [[ -z "${FILE_SHARE:-}" && $# -ge 4 ]]; then FILE_SHARE="${4}"; fi
+  if [[ -z "${FILE_SHARE:-}" && $# -ge 3 ]]; then FILE_SHARE="${3}"; fi
   export FILE_SHARE
-  if [[ -z "${STORAGE_ACCOUNT_KEY:-}" && $# -ge 5 ]]; then STORAGE_ACCOUNT_KEY="${5}"; fi
+  if [[ -z "${STORAGE_ACCOUNT_KEY:-}" && $# -ge 4 ]]; then STORAGE_ACCOUNT_KEY="${4}"; fi
   export STORAGE_ACCOUNT_KEY
   log "=== mcol db (rhel 9) configuration start ==="
-  log "step 1/5: mounting data disks"
+  log "step 1/4: mounting data disks"
   mount_drives_main
-  log "step 2/5: mounting Azure Files share"
+  log "step 2/4: mounting Azure Files share"
   mount_azure_fileshare_main
-  log "step 3/5: configuring waagent swap"
-  set_swap_space_main
-  log "step 4/5: applying oracle prerequisites"
+  log "step 3/4: applying oracle prerequisites"
   oracle_prereqs_main
-  log "step 5/5: disabling host firewall"
+  log "step 4/4: disabling host firewall"
   disable_firewall_main
   log "=== mcol db (rhel 9) configuration complete ==="
 }

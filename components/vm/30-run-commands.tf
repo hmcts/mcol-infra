@@ -24,7 +24,6 @@ locals {
     "entrypoints/_prologue.sh",
     "mount-drives.sh",
     "mount-azure-fileshare.sh",
-    "set-swap-space.sh",
     "oracle-prereqs-rhel9.sh",
     "disable-firewall.sh",
     "entrypoints/db-rhel9.sh",
@@ -33,18 +32,17 @@ locals {
     "entrypoints/_prologue.sh",
     "mount-drives.sh",
     "mount-azure-fileshare.sh",
-    "set-swap-space.sh",
     "oracle-prereqs-rhel7.sh",
     "disable-firewall.sh",
     "entrypoints/dbmig-rhel7.sh",
   ]
   # The web/app Docker hosts (Ubuntu 22.04) need no Oracle or data-disk
-  # configuration; the legacy setup playbook also mounted the build share and
-  # configured waagent resource-disk swap on this tier.
+  # configuration; the legacy setup playbook also mounted the build share on
+  # this tier. No waagent swap is configured: the LLD SKUs (Dsv6 / Esv5) have
+  # no local temporary disk to host resource-disk swap.
   docker_host_script_files = [
     "entrypoints/_prologue.sh",
     "mount-azure-fileshare.sh",
-    "set-swap-space.sh",
     "entrypoints/docker-host.sh",
   ]
   db_rhel9_script    = join("\n", [for f in local.db_rhel9_script_files : file("${local.run_command_dir}/${f}")])
@@ -62,9 +60,6 @@ locals {
       "/dev/disk/azure/scsi1/lun${tonumber(disk)}:${[for d in vm.data_disks : d.mount_path if d.lun == tonumber(disk)][0]}"
     ])
   }
-  db_swap_size_mb = "16384"
-  # Legacy MCOL web/app layers both used a 10240MB swapfile.
-  docker_host_swap_size_mb = "10240"
 
   # The migration VM is RHEL 7.9 (image sku 79-gen2); the permanent Oracle
   # servers are RHEL 9.6 (96-gen2).
@@ -86,10 +81,6 @@ resource "azurerm_virtual_machine_run_command" "db_config" {
   parameter {
     name  = "MOUNTS"
     value = local.db_data_disk_mounts[each.key]
-  }
-  parameter {
-    name  = "SWAP_SIZE_MB"
-    value = local.db_swap_size_mb
   }
   parameter {
     name  = "STORAGE_ACCOUNT_NAME"
@@ -127,10 +118,6 @@ resource "azurerm_virtual_machine_run_command" "docker_host_config" {
     script = local.docker_host_script
   }
 
-  parameter {
-    name  = "SWAP_SIZE_MB"
-    value = local.docker_host_swap_size_mb
-  }
   parameter {
     name  = "STORAGE_ACCOUNT_NAME"
     value = "storheritage003"
