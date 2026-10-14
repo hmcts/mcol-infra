@@ -55,6 +55,7 @@ set_swap_space_main() {
 
   if [[ "$ss_changed" -eq 0 ]]; then
     log "no changes — waagent swap already configured (${SWAP_SIZE_MB}MB)"
+    [[ -n "$(swapon --noheadings --show=NAME 2>/dev/null)" ]] || die "waagent swap is configured but no swap is active — does this VM size have a local temporary (resource) disk?"
     return 0
   fi
 
@@ -82,7 +83,10 @@ set_swap_space_main() {
   [[ "$restarted" -eq 1 ]] || die "neither waagent nor walinuxagent systemd unit found"
 
   sleep 5
-  swapon --show || true
+  if [[ -z "$(swapon --noheadings --show=NAME 2>/dev/null)" ]]; then
+    die "no active swap after configuring waagent — does this VM size have a local temporary (resource) disk?"
+  fi
+  swapon --show
   log "set-swap-space complete"
 }
 

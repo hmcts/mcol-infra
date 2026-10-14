@@ -1,7 +1,7 @@
 # mcol-infra Review — Terraform and Azure DevOps Pipeline Implementation
 
 **Date:** 2026-10-10
-**Scope:** All 28 files in `mcol-infra` — four Terraform components (`core`, `vm`, `load-balancer`, `rbac`), environment tfvars, `azure-pipelines.yaml`, README, and repo housekeeping files.
+**Scope:** The `mcol-infra` repository — four Terraform components (`core`, `vm`, `load-balancer`, `rbac`), environment tfvars, `azure-pipelines.yaml`, README, and repo housekeeping files.
 
 **Reviewed against:**
 

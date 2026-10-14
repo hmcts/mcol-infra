@@ -58,15 +58,18 @@ REMOTE="//${STORAGE_ACCOUNT_NAME}.file.core.windows.net/${FILE_SHARE}"
 CIFS_OPTS="vers=3.0,credentials=${CRED_FILE},dir_mode=0777,file_mode=0777,serverino"
 
 mkdir -p "$MOUNT_DIR" "$CRED_DIR"
+local needs_remount=0
 
 cred_content=$'username='"${STORAGE_ACCOUNT_NAME}"$'\npassword='"${STORAGE_ACCOUNT_KEY}"
 if [[ -f "$CRED_FILE" ]] && [[ "$(cat "$CRED_FILE")" == "$cred_content" ]]; then
   log "credentials file $CRED_FILE already up to date"
 else
   (umask 077; printf '%s\n' "$cred_content" > "$CRED_FILE")
-  chmod 600 "$CRED_FILE"
-  log "wrote credentials file $CRED_FILE (mode 0600)"
+  needs_remount=1
+  log "wrote credentials file $CRED_FILE"
 fi
+# Always enforce the mode, even when the content already matched.
+chmod 600 "$CRED_FILE"
 
 fstab_line="${REMOTE} ${MOUNT_DIR} cifs nofail,${CIFS_OPTS} 0 0"
 if grep -qE "^${REMOTE//\//\\/}[[:space:]]" /etc/fstab && \
@@ -76,11 +79,12 @@ else
   # Remove any stale entry for this share/mount point, then add the desired one.
   sed -i "\|^${REMOTE} |d" /etc/fstab
   printf '%s\n' "$fstab_line" >> /etc/fstab
+  needs_remount=1
   log "fstab: updated entry for $REMOTE on $MOUNT_DIR"
 fi
 
 current_src="$(findmnt -rn -M "$MOUNT_DIR" -o SOURCE 2>/dev/null || true)"
-if [[ "$current_src" == "$REMOTE" ]]; then
+if [[ "$current_src" == "$REMOTE" && "$needs_remount" -eq 0 ]]; then
   log "$MOUNT_DIR already mounted"
 else
   [[ -z "$current_src" ]] || umount "$MOUNT_DIR"

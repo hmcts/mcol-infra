@@ -16,10 +16,10 @@ variable "web_users" {
   default     = {}
   validation {
     condition = alltrue([
-      for user in var.web_users : anytrue([user.is_group != null, user.is_user != null, user.is_service_principal != null])
-      && contains(["admin", "user"], lower(user.role_type))
+      for user in var.web_users : length([for flag in [user.is_group, user.is_user, user.is_service_principal] : flag if flag]) == 1
+      && contains(["admin", "user"], user.role_type)
     ])
-    error_message = "One of is_group, is_user or is_service_principal must be set to true for each user, group or service principal. The valid values for role_type are admin and user."
+    error_message = "Exactly one of is_group, is_user or is_service_principal must be set to true for each user, group or service principal. The valid values for role_type are admin and user (lowercase)."
   }
 }
 
@@ -35,10 +35,10 @@ variable "app_users" {
   default     = {}
   validation {
     condition = alltrue([
-      for user in var.app_users : anytrue([user.is_group != null, user.is_user != null, user.is_service_principal != null])
-      && contains(["admin", "user"], lower(user.role_type))
+      for user in var.app_users : length([for flag in [user.is_group, user.is_user, user.is_service_principal] : flag if flag]) == 1
+      && contains(["admin", "user"], user.role_type)
     ])
-    error_message = "One of is_group, is_user or is_service_principal must be set to true for each user, group or service principal. The valid values for role_type are admin and user."
+    error_message = "Exactly one of is_group, is_user or is_service_principal must be set to true for each user, group or service principal. The valid values for role_type are admin and user (lowercase)."
   }
 }
 
@@ -54,10 +54,10 @@ variable "db_users" {
   default     = {}
   validation {
     condition = alltrue([
-      for user in var.db_users : anytrue([user.is_group != null, user.is_user != null, user.is_service_principal != null])
-      && contains(["admin", "user"], lower(user.role_type))
+      for user in var.db_users : length([for flag in [user.is_group, user.is_user, user.is_service_principal] : flag if flag]) == 1
+      && contains(["admin", "user"], user.role_type)
     ])
-    error_message = "One of is_group, is_user or is_service_principal must be set to true for each user, group or service principal. The valid values for role_type are admin and user."
+    error_message = "Exactly one of is_group, is_user or is_service_principal must be set to true for each user, group or service principal. The valid values for role_type are admin and user (lowercase)."
   }
 }
 

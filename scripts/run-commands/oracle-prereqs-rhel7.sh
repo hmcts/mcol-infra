@@ -228,7 +228,7 @@ EOF
   rm -f "$block_file"
 
   # Firewall (role: icmp + firewalld port tasks)
-  if systemctl list-unit-files firewalld.service >/dev/null 2>&1; then
+  if systemctl cat firewalld.service >/dev/null 2>&1; then
     local changed=0 port
     # Allow ICMP echo-request (requested by the oracle team for troubleshooting)
     if firewall-cmd --permanent --query-icmp-block=echo-request >/dev/null 2>&1; then
