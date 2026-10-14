@@ -21,7 +21,11 @@ mcol_main() {
   export STORAGE_ACCOUNT_KEY
   log "=== mcol db (rhel 9) configuration start ==="
   log "step 1/5: mounting data disks"
-  mount_drives_main
+  if [[ -n "${MOUNTS:-}" ]]; then
+    mount_drives_main
+  else
+    log "no data-disk mount paths configured — skipping mount-drives"
+  fi
   log "step 2/5: mounting Azure Files share"
   mount_azure_fileshare_main
   log "step 3/5: configuring swapfile"

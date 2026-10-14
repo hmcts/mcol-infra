@@ -66,10 +66,16 @@ o_ensure_user() {
     if getent passwd "$uid" >/dev/null; then
       die "uid $uid already belongs to user $(getent passwd "$uid" | cut -d: -f1); cannot create $name"
     fi
-    useradd -u "$uid" -s /bin/bash "$name"
-    log "created user $name (uid $uid, primary group $name)"
+    useradd -u "$uid" -g oinstall -s /bin/bash "$name"
+    log "created user $name (uid $uid, primary group oinstall)"
   fi
-  for grp in oinstall dba; do
+  # oinstall must be the primary group (Oracle inventory group); also correct
+  # an account created earlier with a private primary group.
+  if [[ "$(id -gn "$name")" != "oinstall" ]]; then
+    usermod -g oinstall "$name"
+    log "set primary group of $name to oinstall"
+  fi
+  for grp in dba; do
     if ! id -nG "$name" | tr ' ' '\n' | grep -qx "$grp"; then
       usermod -aG "$grp" "$name"
       log "added $name to group $grp"

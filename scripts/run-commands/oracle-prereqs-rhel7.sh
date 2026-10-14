@@ -65,10 +65,16 @@ o_ensure_user() {
     if getent passwd "$uid" >/dev/null; then
       die "uid $uid already belongs to user $(getent passwd "$uid" | cut -d: -f1); cannot create $name"
     fi
-    useradd -u "$uid" -s /bin/bash "$name"
-    log "created user $name (uid $uid, primary group $name)"
+    useradd -u "$uid" -g oinstall -s /bin/bash "$name"
+    log "created user $name (uid $uid, primary group oinstall)"
   fi
-  for grp in oinstall dba; do
+  # oinstall must be the primary group (Oracle inventory group); also correct
+  # an account created earlier with a private primary group.
+  if [[ "$(id -gn "$name")" != "oinstall" ]]; then
+    usermod -g oinstall "$name"
+    log "set primary group of $name to oinstall"
+  fi
+  for grp in dba; do
     if ! id -nG "$name" | tr ' ' '\n' | grep -qx "$grp"; then
       usermod -aG "$grp" "$name"
       log "added $name to group $grp"
@@ -229,7 +235,9 @@ EOF
   rm -f "$block_file"
 
   # Firewall (role: icmp + firewalld port tasks)
-  if systemctl cat firewalld.service >/dev/null 2>&1; then
+  if ! systemctl is-active --quiet firewalld.service; then
+    log "firewalld not installed or not running — skipping firewall rules"
+  else
     local changed=0 port
     # Allow ICMP echo-request (requested by the oracle team for troubleshooting)
     if firewall-cmd --permanent --query-icmp-block=echo-request >/dev/null 2>&1; then
@@ -249,8 +257,6 @@ EOF
     else
       log "firewalld rules already present"
     fi
-  else
-    log "firewalld not installed — skipping firewall configuration"
   fi
 
   log "oracle-prereqs-rhel7 complete"

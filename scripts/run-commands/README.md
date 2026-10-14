@@ -59,7 +59,7 @@ layout these scripts were ported from is a useful starting reference:
 `components/vm/30-run-commands.tf` creates **one**
 `azurerm_virtual_machine_run_command` per database VM. Each run command's
 script is the per-OS-type combination of the per-step scripts above —
-`mount-drives` + `set-swap-space` + `oracle-prereqs-<rhel>` (+ `disable-firewall`
+`mount-drives` + `mount-azure-fileshare` + `set-swap-space` + `oracle-prereqs-<rhel>` (+ `disable-firewall`
 on RHEL 9) — assembled in Terraform with `file()` + `join()` from
 `entrypoints/_prologue.sh`, the step scripts, and a per-type entrypoint last:
 
@@ -164,7 +164,7 @@ The following Ansible content has no Run Command equivalent here, by design:
 
 - **CIS hardening** (`cis-rhel7`, `cis-rhel7-create-partitions`,
   `ansible-lockdown.RHEL9-CIS`) — image-build-time concerns. These VMs use
-  marketplace images; if CIS is required it should be a Packer/Archestrated
+  marketplace images; if CIS is required it should be a Packer/orchestrated
   image build, not a run-time script.
 - **ClamAV** (`geerlingguy.clamav`, `clamav-db-download.yml`,
   `push-clamav-db.yml`, `cron-job.yml`) — antivirus is covered by the Cortex
