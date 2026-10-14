@@ -30,6 +30,7 @@ parameters:
     values:
       - plan
       - apply
+      - destroy
   - name: environment_components
     type: object
     default:
@@ -38,21 +39,27 @@ parameters:
         component: 'core'
         service_connection: 'DTS-HERITAGE-EXTSVC-STG'
         dependsOn: 'Precheck'
+        destroyDependsOn: 'stg_vm'
       - deployment: 'stg_vm'
         environment: 'stg'
         component: 'vm'
         service_connection: 'DTS-HERITAGE-EXTSVC-STG'
         dependsOn: 'stg_core'
+        destroyDependsOn:
+          - 'stg_load_balancer'
+          - 'stg_rbac'
       - deployment: 'stg_load_balancer'
         environment: 'stg'
         component: 'load-balancer'
         service_connection: 'DTS-HERITAGE-EXTSVC-STG'
         dependsOn: 'stg_vm'
+        destroyDependsOn: 'prod_core'
       - deployment: 'stg_rbac'
         environment: 'stg'
         component: 'rbac'
         service_connection: 'ops-approval-gate-stg-envs'
         dependsOn: 'stg_vm'
+        destroyDependsOn: 'prod_core'
       - deployment: 'prod_core'
         environment: 'prod'
         component: 'core'
@@ -60,22 +67,28 @@ parameters:
         dependsOn:
           - 'stg_load_balancer'
           - 'stg_rbac'
+        destroyDependsOn: 'prod_vm'
       - deployment: 'prod_vm'
         environment: 'prod'
         component: 'vm'
         service_connection: 'DTS-HERITAGE-EXTSVC-PROD'
         dependsOn:
           - 'prod_core'
+        destroyDependsOn:
+          - 'prod_load_balancer'
+          - 'prod_rbac'
       - deployment: 'prod_load_balancer'
         environment: 'prod'
         component: 'load-balancer'
         service_connection: 'DTS-HERITAGE-EXTSVC-PROD'
         dependsOn: 'prod_vm'
+        destroyDependsOn: 'Precheck'
       - deployment: 'prod_rbac'
         environment: 'prod'
         component: 'rbac'
         service_connection: 'ops-approval-gate-prod-envs'
         dependsOn: 'prod_vm'
+        destroyDependsOn: 'Precheck'
 
 variables:
   - name: timeoutInMinutes
@@ -104,7 +117,13 @@ stages:
 
   - ${{ each deployment in parameters.environment_components }}:
     - stage: ${{ deployment.deployment }}
-      dependsOn: ${{ deployment.dependsOn }}
+      # Destroy runs the stages in reverse of the create order so dependents
+      # (load balancer/RBAC, then VMs, then core) are removed before what they
+      # depend on, and prod before stg.
+      ${{ if eq(parameters.overrideAction, 'destroy') }}:
+        dependsOn: ${{ deployment.destroyDependsOn }}
+      ${{ else }}:
+        dependsOn: ${{ deployment.dependsOn }}
       jobs:
         - job: TerraformPlanApply
           pool: hmcts-sds-ptl
