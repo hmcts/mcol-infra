@@ -44,6 +44,16 @@ network_security_groups = {
   web-nsg = {
     subnets = ["web"]
     rules = {
+      "deny_vnet_inbound" = {
+        priority                   = 4000
+        direction                  = "Inbound"
+        access                     = "Deny"
+        protocol                   = "*"
+        source_port_range          = "*"
+        destination_port_range     = "*"
+        source_address_prefix      = "VirtualNetwork"
+        destination_address_prefix = "*"
+      }
       "allow_http" = {
         priority                   = 200
         direction                  = "Inbound"
@@ -89,6 +99,16 @@ network_security_groups = {
   app-nsg = {
     subnets = ["app"]
     rules = {
+      "deny_vnet_inbound" = {
+        priority                   = 4000
+        direction                  = "Inbound"
+        access                     = "Deny"
+        protocol                   = "*"
+        source_port_range          = "*"
+        destination_port_range     = "*"
+        source_address_prefix      = "VirtualNetwork"
+        destination_address_prefix = "*"
+      }
       "allow_web" = {
         priority                   = 200
         direction                  = "Inbound"
@@ -144,6 +164,16 @@ network_security_groups = {
   data-nsg = {
     subnets = ["data"]
     rules = {
+      "deny_vnet_inbound" = {
+        priority                   = 4000
+        direction                  = "Inbound"
+        access                     = "Deny"
+        protocol                   = "*"
+        source_port_range          = "*"
+        destination_port_range     = "*"
+        source_address_prefix      = "VirtualNetwork"
+        destination_address_prefix = "*"
+      }
       # Application, CaseMan and SDP access is limited to the permanent Oracle servers so the
       # migration VM stays isolated from live traffic.
       "allow_oracle_app" = {
