@@ -239,25 +239,40 @@ EOF
   rm -f "$block_file"
 
   # Firewall (role: icmp + firewalld port tasks)
-  if ! systemctl is-active --quiet firewalld.service; then
-    log "firewalld not installed or not running — skipping firewall rules"
+  # Permanent rules are reconciled whether or not firewalld is running, so an
+  # installed-but-stopped service still starts with the Oracle ports open.
+  local -a fw
+  local fw_running=0
+  if systemctl is-active --quiet firewalld.service; then
+    fw=(firewall-cmd --permanent)
+    fw_running=1
+  elif systemctl cat firewalld.service >/dev/null 2>&1 && command -v firewall-offline-cmd >/dev/null 2>&1; then
+    fw=(firewall-offline-cmd)
+    log "firewalld not running — configuring permanent rules offline"
   else
+    fw=()
+    log "firewalld not installed — skipping firewall rules"
+  fi
+
+  if [[ "${#fw[@]}" -gt 0 ]]; then
     local changed=0 port
     # Allow ICMP echo-request (requested by the oracle team for troubleshooting)
-    if firewall-cmd --permanent --query-icmp-block=echo-request >/dev/null 2>&1; then
-      firewall-cmd --permanent --remove-icmp-block=echo-request
+    if "${fw[@]}" --query-icmp-block=echo-request >/dev/null 2>&1; then
+      "${fw[@]}" --remove-icmp-block=echo-request
       changed=1
     fi
     # Oracle-specific ports
     for port in 1159 1521 3872 4889 7788 7799 9788 9851; do
-      if ! firewall-cmd --permanent --zone=public --query-port="${port}/tcp" >/dev/null 2>&1; then
-        firewall-cmd --permanent --zone=public --add-port="${port}/tcp"
+      if ! "${fw[@]}" --zone=public --query-port="${port}/tcp" >/dev/null 2>&1; then
+        "${fw[@]}" --zone=public --add-port="${port}/tcp"
         changed=1
       fi
     done
-    if [[ "$changed" -eq 1 ]]; then
+    if [[ "$changed" -eq 1 && "$fw_running" -eq 1 ]]; then
       firewall-cmd --reload
       log "firewalld rules applied and reloaded"
+    elif [[ "$changed" -eq 1 ]]; then
+      log "firewalld rules written to permanent config (applied when the service starts)"
     else
       log "firewalld rules already present"
     fi
