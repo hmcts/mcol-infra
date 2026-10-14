@@ -50,7 +50,10 @@ o_ensure_line() {
 o_ensure_group() {
   local name="$1" gid="$2"
   if getent group "$name" >/dev/null; then
-    log "group $name already exists"
+    # Restored Oracle files keep numeric ownership, so the GID must match.
+    [[ "$(getent group "$name" | cut -d: -f3)" == "$gid" ]] \
+      || die "group $name exists with gid $(getent group "$name" | cut -d: -f3), expected $gid"
+    log "group $name already exists (gid $gid)"
   else
     if getent group "$gid" >/dev/null; then
       die "gid $gid already belongs to group $(getent group "$gid" | cut -d: -f1); cannot create $name"
@@ -69,6 +72,7 @@ o_ensure_user() {
     useradd -u "$uid" -g oinstall -s /bin/bash "$name"
     log "created user $name (uid $uid, primary group oinstall)"
   fi
+  [[ "$(id -u "$name")" == "$uid" ]] || die "user $name exists with uid $(id -u "$name"), expected $uid"
   # oinstall must be the primary group (Oracle inventory group); also correct
   # an account created earlier with a private primary group.
   if [[ "$(id -gn "$name")" != "oinstall" ]]; then
