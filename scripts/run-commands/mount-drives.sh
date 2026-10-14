@@ -56,7 +56,7 @@ mount_drives_main() {
 
   [[ -n "$MOUNTS" ]] || die "MOUNTS is not set"
 
-  local entry src path fstype opts current_mode current_src existing md_marker
+  local entry src path fstype opts current_mode current_src existing md_marker fs_created
   local -a md_specs
   IFS=';' read -ra md_specs <<< "$MOUNTS"
   for entry in "${md_specs[@]}"; do
@@ -86,9 +86,11 @@ mount_drives_main() {
       fi
     fi
 
+    fs_created=0
     if ! blkid "$src" >/dev/null 2>&1; then
       log "no filesystem on $src — creating $fstype"
       mkfs -t "$fstype" "$src"
+      fs_created=1
     else
       existing="$(blkid -o value -s TYPE "$src")"
       [[ "$existing" == "$fstype" ]] || die "$src already has a $existing filesystem, refusing to create $fstype"
@@ -121,6 +123,13 @@ mount_drives_main() {
       fi
       mount "$path"
       log "mounted $src on $path"
+    fi
+    # The earlier chmod only affected the hidden mount-point directory; a new
+    # filesystem root is mode 0755, so apply the requested mode to it. Existing
+    # filesystems keep their permissions.
+    if [[ "$fs_created" -eq 1 ]]; then
+      chmod "$DIR_MODE" "$path"
+      log "set mode of new filesystem root $path to $DIR_MODE"
     fi
   done
 
