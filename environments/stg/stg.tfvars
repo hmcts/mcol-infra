@@ -228,6 +228,14 @@ legacy_resource_group_name = "NMCOL-RG"
 
 install_azure_monitor = true
 
+# Dynatrace OneAgent needs >1.72 GiB free on /opt, which only the run
+# commands' grow-rhel-lvs step provides on the RHEL marketplace images, and
+# the extension installs before run commands can run. Keep false on a
+# from-scratch first deploy; once the run commands converge, flip to true and
+# re-apply so the extension installs cleanly. See
+# components/vm/11-inputs-optional.tf.
+install_dynatrace_oneagent = false
+
 web_vms = {
   mcol-web-vm01-stg = {
     availability_zone = 1

@@ -97,10 +97,17 @@ online; it never shrinks). It is the first step of both RHEL chains.
 
 Ordering caveat: run commands only execute after the whole VM module — and
 hence the Dynatrace extension — has been applied, so on a **fresh RHEL VM the
-extension still fails on the first apply**, the run command then grows the
-volumes, and re-applying the `vm` component converges. To avoid the failed
-first apply entirely, pre-grow with a one-off before (or while) the VM
-component is applied:
+extension would fail on the first apply**, the run command would then grow the
+volumes, and re-applying the `vm` component would converge. To avoid that
+chicken-and-egg failure, the OneAgent extension is gated behind the
+`install_dynatrace_oneagent` flag (default `false` in
+`components/vm/11-inputs-optional.tf`). A from-scratch first deploy runs with
+the flag off (set `install_dynatrace_oneagent = false` in the environment
+tfvars), lets the run commands grow `/opt`, then flips the flag back to true
+and re-applies — the extension then installs cleanly on its first attempt.
+Alternatively, a VM whose `/opt` has already been grown (or one you pre-grow
+with a one-off before or while the VM component is applied) can simply keep
+the flag set to true:
 
 ```bash
 az vm run-command invoke --subscription DTS-HERITAGE-EXTSVC-STG \

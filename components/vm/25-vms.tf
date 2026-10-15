@@ -30,7 +30,7 @@ module "virtual-machines" {
   managed_disks                = lookup(local.managed_disks, each.key, {})
 
   install_azure_monitor      = var.install_azure_monitor
-  install_dynatrace_oneagent = true
+  install_dynatrace_oneagent = var.install_dynatrace_oneagent
   install_splunk_uf          = true
   nessus_install             = true
   install_docker             = each.value.install_docker

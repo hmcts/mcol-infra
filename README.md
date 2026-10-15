@@ -106,10 +106,13 @@ marketplace images keep at their stock sizes (`grow-rhel-lvs.sh`). The latter
 matters because the Dynatrace OneAgent installer aborts (installer exit code
 6) when `/opt` has less than ~1.72 GiB free, and the RHEL images ship `/opt`
 on a 2 GiB volume even when the OS disk is 64 GiB — Ubuntu is unaffected.
-Because run commands only execute after the VM module's extensions, **a fresh
-RHEL VM's Dynatrace extension fails on the first apply and converges on the
-second** (or pre-grow with a one-off `az vm run-command invoke` before
-applying — see `scripts/run-commands/README.md`). The `vm` component creates one
+Because run commands only execute after the VM module's extensions, a fresh
+RHEL VM would otherwise deadlock: the Dynatrace extension fails before the run
+command that grows `/opt` is ever created. The extension is therefore gated
+behind the `install_dynatrace_oneagent` flag — leave it `false` in the
+environment tfvars for a from-scratch first deploy, then flip it to `true` and
+re-apply once the run commands have converged (see
+`scripts/run-commands/README.md`). The `vm` component creates one
 `azurerm_virtual_machine_run_command` per VM that needs post-deployment
 setup: the full combined script on the database VMs, and a share-mount plus
 swap script on the Ubuntu web/app Docker hosts. The legacy Azure Files share
