@@ -106,8 +106,12 @@ resource "azurerm_virtual_machine_run_command" "db_config" {
     value = var.fileshare_storage_account_key
   }
 
-  # Package installs run one at a time and can be slow on first boot.
-  timeout_in_seconds = 3600
+  # Package installs run one at a time and can be slow on first boot. The
+  # provider has no timeout_in_seconds argument; it forwards the Terraform
+  # create timeout to Azure as the run command's timeoutInSeconds.
+  timeouts {
+    create = "60m"
+  }
 
   tags = module.ctags.common_tags
 
@@ -146,7 +150,9 @@ resource "azurerm_virtual_machine_run_command" "docker_host_config" {
     value = var.fileshare_storage_account_key
   }
 
-  timeout_in_seconds = 1800
+  timeouts {
+    create = "30m"
+  }
 
   tags = module.ctags.common_tags
 
