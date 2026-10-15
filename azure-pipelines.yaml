@@ -130,6 +130,9 @@ stages:
         - job: TerraformPlanApply
           pool: hmcts-sds-ptl
           timeoutInMinutes: ${{ variables.timeoutInMinutes }}
+          ${{ if eq(deployment.component, 'vm') }}:
+            variables:
+              - group: ${{ deployment.service_connection }}
           steps:
             - template: steps/terraform.yaml@cnp-azuredevops-libraries
               parameters:
@@ -139,10 +142,8 @@ stages:
                 serviceConnection: ${{ deployment.service_connection }}
                 terraformInitSubscription: ${{ variables.terraformInitSubscription }}
                 product: ${{ variables.product }}
-                # Secret pipeline variables are not exported to the environment
-                # automatically; map the file share key into the vm component.
                 ${{ if eq(deployment.component, 'vm') }}:
                   terraformEnvironmentVariables:
-                    TF_VAR_fileshare_storage_account_key: $(TF_VAR_fileshare_storage_account_key)
+                    TF_VAR_storheritage003_build_share_key: $(TF_VAR_storheritage003_build_share_key)
                 planCommandOptions:
                   -compact-warnings

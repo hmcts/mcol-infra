@@ -22,6 +22,7 @@ locals {
   # the entrypoint (last) invokes the per-step mains in order.
   db_rhel9_script_files = [
     "entrypoints/_prologue.sh",
+    "grow-rhel-lvs.sh",
     "mount-drives.sh",
     "mount-azure-fileshare.sh",
     "set-swap-space.sh",
@@ -31,6 +32,7 @@ locals {
   ]
   dbmig_rhel7_script_files = [
     "entrypoints/_prologue.sh",
+    "grow-rhel-lvs.sh",
     "mount-drives.sh",
     "mount-azure-fileshare.sh",
     "set-swap-space.sh",
@@ -104,7 +106,7 @@ resource "azurerm_virtual_machine_run_command" "db_config" {
   }
   protected_parameter {
     name  = "STORAGE_ACCOUNT_KEY"
-    value = var.fileshare_storage_account_key
+    value = var.storheritage003_build_share_key
   }
 
   # Package installs run one at a time and can be slow on first boot. The
@@ -148,7 +150,7 @@ resource "azurerm_virtual_machine_run_command" "docker_host_config" {
   }
   protected_parameter {
     name  = "STORAGE_ACCOUNT_KEY"
-    value = var.fileshare_storage_account_key
+    value = var.storheritage003_build_share_key
   }
 
   timeouts {

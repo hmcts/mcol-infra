@@ -101,12 +101,22 @@ Idempotent Run Command scripts ported from the legacy estate's setup Ansible
 (oracle-azure-infrastructure) live in `scripts/run-commands/`. They cover the
 per-tier, per-base-image configuration that the legacy Packer images used to
 carry — Oracle prerequisites for RHEL 7 and RHEL 9, data-disk mounting,
-swap and firewall handling. The `vm` component creates one
+swap and firewall handling, and growing the RHEL rootvg volumes that the
+marketplace images keep at their stock sizes (`grow-rhel-lvs.sh`). The latter
+matters because the Dynatrace OneAgent installer aborts (installer exit code
+6) when `/opt` has less than ~1.72 GiB free, and the RHEL images ship `/opt`
+on a 2 GiB volume even when the OS disk is 64 GiB — Ubuntu is unaffected.
+Because run commands only execute after the VM module's extensions, **a fresh
+RHEL VM's Dynatrace extension fails on the first apply and converges on the
+second** (or pre-grow with a one-off `az vm run-command invoke` before
+applying — see `scripts/run-commands/README.md`). The `vm` component creates one
 `azurerm_virtual_machine_run_command` per VM that needs post-deployment
 setup: the full combined script on the database VMs, and a share-mount plus
 swap script on the Ubuntu web/app Docker hosts. The legacy Azure Files share
 key is passed to each command through a protected parameter sourced from the
-secure `TF_VAR_fileshare_storage_account_key` pipeline variable, which
+secure `TF_VAR_storheritage003_build_share_key` variable in the per-environment
+variable group (named after the service connection, e.g.
+`DTS-HERITAGE-EXTSVC-STG`), which
 `azure-pipelines.yaml` maps explicitly into the `vm` component's Terraform
 environment. The separate
 XDR run command is created inside the virtual-machines module. See

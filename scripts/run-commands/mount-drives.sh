@@ -89,7 +89,14 @@ mount_drives_main() {
     fs_created=0
     if ! blkid "$src" >/dev/null 2>&1; then
       log "no filesystem on $src — creating $fstype"
-      mkfs -t "$fstype" "$src"
+      # Force (y) the "entire device, not just one partition" check: Azure
+      # data disks are formatted whole-device, and Run Command has no stdin
+      # to answer the interactive prompt. mkfs.ext* uses -F, mkfs.xfs -f.
+      case "$fstype" in
+        ext2|ext3|ext4) mkfs -t "$fstype" -F "$src" ;;
+        xfs)            mkfs -t "$fstype" -f "$src" ;;
+        *)              mkfs -t "$fstype" "$src" ;;
+      esac
       fs_created=1
     else
       existing="$(blkid -o value -s TYPE "$src")"

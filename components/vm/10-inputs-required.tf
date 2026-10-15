@@ -73,8 +73,8 @@ variable "cnp_vault_sub" {
   description = "Subscription for the CNP key vault"
 }
 
-variable "fileshare_storage_account_key" {
+variable "storheritage003_build_share_key" {
   type        = string
   sensitive   = true
-  description = "Storage account key for the legacy storheritage003/build Azure Files share. Supply via the secure TF_VAR_fileshare_storage_account_key pipeline variable."
+  description = "Storage account key for the build file share on the legacy storheritage003 storage account (heritage INTSVC subscription). Supply via the secure TF_VAR_storheritage003_build_share_key variable in the environment's variable group."
 }

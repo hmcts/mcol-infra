@@ -20,17 +20,19 @@ mcol_main() {
   if [[ -z "${STORAGE_ACCOUNT_KEY:-}" && $# -ge 5 ]]; then STORAGE_ACCOUNT_KEY="${5}"; fi
   export STORAGE_ACCOUNT_KEY
   log "=== mcol migration db (rhel 7) configuration start ==="
-  log "step 1/4: mounting data disks"
+  log "step 1/5: growing LVM volumes for /opt and /var"
+  grow_rhel_lvs_main
+  log "step 2/5: mounting data disks"
   if [[ -n "${MOUNTS:-}" ]]; then
     mount_drives_main
   else
     log "no data-disk mount paths configured — skipping mount-drives"
   fi
-  log "step 2/4: mounting Azure Files share"
+  log "step 3/5: mounting Azure Files share"
   mount_azure_fileshare_main
-  log "step 3/4: configuring waagent resource-disk swap"
+  log "step 4/5: configuring waagent resource-disk swap"
   set_swap_space_main
-  log "step 4/4: applying oracle prerequisites"
+  log "step 5/5: applying oracle prerequisites"
   oracle_prereqs_main
   log "=== mcol migration db (rhel 7) configuration complete ==="
 }
