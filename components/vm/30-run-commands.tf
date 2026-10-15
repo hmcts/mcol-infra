@@ -24,8 +24,8 @@ locals {
     "entrypoints/_prologue.sh",
     "grow-rhel-lvs.sh",
     "mount-drives.sh",
-    "mount-azure-fileshare.sh",
     "set-swap-space.sh",
+    "mount-azure-fileshare.sh",
     "oracle-prereqs-rhel9.sh",
     "disable-firewall.sh",
     "entrypoints/db-rhel9.sh",
@@ -34,8 +34,8 @@ locals {
     "entrypoints/_prologue.sh",
     "grow-rhel-lvs.sh",
     "mount-drives.sh",
-    "mount-azure-fileshare.sh",
     "set-swap-space.sh",
+    "mount-azure-fileshare.sh",
     "oracle-prereqs-rhel7.sh",
     "disable-firewall.sh",
     "entrypoints/dbmig-rhel7.sh",
@@ -47,8 +47,8 @@ locals {
   # (D2ds_v5 / D4ds_v5 / E4-2ds_v5) has a temporary disk for it.
   docker_host_script_files = [
     "entrypoints/_prologue.sh",
-    "mount-azure-fileshare.sh",
     "set-swap-space.sh",
+    "mount-azure-fileshare.sh",
     "entrypoints/docker-host.sh",
   ]
   db_rhel9_script    = join("\n", [for f in local.db_rhel9_script_files : file("${local.run_command_dir}/${f}")])

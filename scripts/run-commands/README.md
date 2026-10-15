@@ -23,7 +23,7 @@ on failure.
 | `oracle-prereqs-rhel7.sh` | `oracle-config-rhel7` | As above for EL 7, plus the firewalld ICMP/port rules the RHEL 7 role applied |
 | `disable-firewall.sh` | `disable-firewall` | Stops and disables `firewalld`; NSGs enforce network policy |
 | `mount-drives.sh` | `mount-drives` | Formats (only if unformatted) and persistently mounts data disks |
-| `set-swap-space.sh` | `set-swap-space` | Creates and enables a swapfile on the OS disk (the LLD SKUs have no temporary disk for waagent swap) |
+| `set-swap-space.sh` | `set-swap-space` | Configures waagent resource-disk swap; must run before `mount-azure-fileshare.sh` because the share mounts inside `/mnt`, which the swap step unmounts |
 | `mount-azure-fileshare.sh` | `mount-azure-fileshare` | Mounts the legacy `storheritage003/build` share over CIFS on each MCOL VM |
 
 The Oracle scripts refuse to run on the wrong major OS version, so the RHEL 7
@@ -33,9 +33,9 @@ and RHEL 9 variants cannot be applied to each other's VMs by mistake.
 
 | VM type | Base image | Scripts |
 | ------- | ---------- | ------- |
-| `mcol-db-vm01/02` (Oracle 19c primary/standby) | RHEL 9.6 | combined `db-rhel9` run command (wired): `grow-rhel-lvs` → `mount-drives` → `mount-azure-fileshare` → `set-swap-space` → `oracle-prereqs-rhel9` → `disable-firewall` |
-| `mcol-dbmig-vm01` (temporary 12c restore/upgrade) | RHEL 7.9 | combined `dbmig-rhel7` run command (wired): `grow-rhel-lvs` → `mount-drives` → `mount-azure-fileshare` → `set-swap-space` → `oracle-prereqs-rhel7` |
-| `mcol-web/app-vm01/02` (Docker hosts) | Ubuntu 22.04 | combined `docker-host` run command (wired): `mount-azure-fileshare` → `set-swap-space` |
+| `mcol-db-vm01/02` (Oracle 19c primary/standby) | RHEL 9.6 | combined `db-rhel9` run command (wired): `grow-rhel-lvs` → `mount-drives` → `set-swap-space` → `mount-azure-fileshare` → `oracle-prereqs-rhel9` → `disable-firewall` |
+| `mcol-dbmig-vm01` (temporary 12c restore/upgrade) | RHEL 7.9 | combined `dbmig-rhel7` run command (wired): `grow-rhel-lvs` → `mount-drives` → `set-swap-space` → `mount-azure-fileshare` → `oracle-prereqs-rhel7` |
+| `mcol-web/app-vm01/02` (Docker hosts) | Ubuntu 22.04 | combined `docker-host` run command (wired): `set-swap-space` → `mount-azure-fileshare` |
 
 Swap is waagent resource-disk swap on the local temporary disk, as in the
 legacy Ansible role: the `ResourceDisk.*` settings are written to
@@ -64,7 +64,7 @@ layout these scripts were ported from is a useful starting reference:
 `components/vm/30-run-commands.tf` creates **one**
 `azurerm_virtual_machine_run_command` per database VM. Each run command's
 script is the per-OS-type combination of the per-step scripts above —
-`grow-rhel-lvs` (RHEL only) + `mount-drives` + `mount-azure-fileshare` + `set-swap-space` + `oracle-prereqs-<rhel>` (+ `disable-firewall`
+`grow-rhel-lvs` (RHEL only) + `mount-drives` + `set-swap-space` + `mount-azure-fileshare` + `oracle-prereqs-<rhel>` (+ `disable-firewall`
 on RHEL 9) — assembled in Terraform with `file()` + `join()` from
 `entrypoints/_prologue.sh`, the step scripts, and a per-type entrypoint last:
 

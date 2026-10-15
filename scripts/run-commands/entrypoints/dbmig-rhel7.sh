@@ -28,10 +28,10 @@ mcol_main() {
   else
     log "no data-disk mount paths configured — skipping mount-drives"
   fi
-  log "step 3/5: mounting Azure Files share"
-  mount_azure_fileshare_main
-  log "step 4/5: configuring waagent resource-disk swap"
+  log "step 3/5: configuring waagent resource-disk swap"
   set_swap_space_main
+  log "step 4/5: mounting Azure Files share"
+  mount_azure_fileshare_main
   log "step 5/5: applying oracle prerequisites"
   oracle_prereqs_main
   log "=== mcol migration db (rhel 7) configuration complete ==="

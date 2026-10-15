@@ -22,10 +22,10 @@ mcol_main() {
   if [[ -z "${STORAGE_ACCOUNT_KEY:-}" && $# -ge 4 ]]; then STORAGE_ACCOUNT_KEY="${4}"; fi
   export STORAGE_ACCOUNT_KEY
   log "=== mcol docker host configuration start ==="
-  log "step 1/2: mounting Azure Files share"
-  mount_azure_fileshare_main
-  log "step 2/2: configuring waagent resource-disk swap"
+  log "step 1/2: configuring waagent resource-disk swap"
   set_swap_space_main
+  log "step 2/2: mounting Azure Files share"
+  mount_azure_fileshare_main
   log "=== mcol docker host configuration complete ==="
 }
 

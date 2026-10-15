@@ -28,10 +28,10 @@ mcol_main() {
   else
     log "no data-disk mount paths configured — skipping mount-drives"
   fi
-  log "step 3/6: mounting Azure Files share"
-  mount_azure_fileshare_main
-  log "step 4/6: configuring waagent resource-disk swap"
+  log "step 3/6: configuring waagent resource-disk swap"
   set_swap_space_main
+  log "step 4/6: mounting Azure Files share"
+  mount_azure_fileshare_main
   log "step 5/6: applying oracle prerequisites"
   oracle_prereqs_main
   log "step 6/6: disabling host firewall"

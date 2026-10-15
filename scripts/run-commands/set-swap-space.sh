@@ -75,7 +75,10 @@ set_swap_space_main() {
 
   # The agent only (re)creates the swapfile when it mounts the resource disk,
   # so force the format/mount path as the legacy role did whenever the
-  # configuration changed or swap is not currently active.
+  # configuration changed or swap is not currently active. This step runs
+  # before the Azure Files share is mounted (see the entrypoints): the
+  # resource disk sits at /mnt on the marketplace images, so a share already
+  # mounted at /mnt/build would keep /mnt busy and block the umount below.
   if [[ "$changed" -eq 1 ]] || ! swapon --noheadings --show=NAME | grep -qxF -- "$swap_file"; then
     if mountpoint -q /mnt; then umount /mnt; fi
     if mountpoint -q "$mount_point"; then umount "$mount_point"; fi
