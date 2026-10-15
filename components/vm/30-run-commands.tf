@@ -40,8 +40,9 @@ locals {
   ]
   # The web/app Docker hosts (Ubuntu 22.04) need no Oracle or data-disk
   # configuration; the legacy setup playbook also mounted the build share on
-  # this tier. Swap is a swapfile on the OS disk: the LLD SKUs (Dsv6 / Esv5)
-  # have no local temporary disk for waagent resource-disk swap.
+  # this tier. Swap is waagent resource-disk swap on the local temporary
+  # disk, as in the legacy estate — every VM SKU in this design
+  # (D2ds_v5 / D4ds_v5 / E4-2ds_v5) has a temporary disk for it.
   docker_host_script_files = [
     "entrypoints/_prologue.sh",
     "mount-azure-fileshare.sh",

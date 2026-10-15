@@ -28,7 +28,7 @@ mcol_main() {
   fi
   log "step 2/5: mounting Azure Files share"
   mount_azure_fileshare_main
-  log "step 3/5: configuring swapfile"
+  log "step 3/5: configuring waagent resource-disk swap"
   set_swap_space_main
   log "step 4/5: applying oracle prerequisites"
   oracle_prereqs_main

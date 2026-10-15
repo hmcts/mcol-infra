@@ -36,10 +36,14 @@ and RHEL 9 variants cannot be applied to each other's VMs by mistake.
 | `mcol-dbmig-vm01` (temporary 12c restore/upgrade) | RHEL 7.9 | combined `dbmig-rhel7` run command (wired): `mount-drives` → `mount-azure-fileshare` → `set-swap-space` → `oracle-prereqs-rhel7` |
 | `mcol-web/app-vm01/02` (Docker hosts) | Ubuntu 22.04 | combined `docker-host` run command (wired): `mount-azure-fileshare` → `set-swap-space` |
 
-Swap is a swapfile on the OS disk, not waagent resource-disk swap: the SKUs
-specified by the LLD (`Standard_D2s_v6`, `Standard_D4s_v6`, `Standard_E4-2s_v5`)
-have no local temporary disk. The 64 GiB OS disk must have headroom for it
-(10 GiB on Docker hosts, 16 GiB on database VMs).
+Swap is waagent resource-disk swap on the local temporary disk, as in the
+legacy Ansible role: the `ResourceDisk.*` settings are written to
+`/etc/waagent.conf` and the agent restarted, so it formats the disk, mounts it
+at `/mnt/resource` and creates the swapfile (recreated at every boot). Every
+SKU in this design has a local temporary disk (`Standard_D2ds_v5`,
+`Standard_D4ds_v5`, and the policy-exempted `Standard_E4-2ds_v5` on the
+database VMs). The script also removes an OS-disk `/swapfile` left behind by
+the earlier swapfile-based version of this script.
 
 For the DB VMs, mount points and swap sizes remain subject to CGI DBA
 confirmation per the LLD (see the main README). The legacy PMCOL data-layer
@@ -147,8 +151,7 @@ MOUNTS="/dev/disk/azure/scsi1/lun10:/opt/moj;/dev/disk/azure/scsi1/lun11:/u01;/d
 
 | Parameter | Default | Purpose |
 | --------- | ------- | ------- |
-| `SWAP_SIZE_MB` | `10240` | Swapfile size in MB (legacy data layer used `16384`) |
-| `SWAP_FILE` | `/swapfile` | Swapfile path on the OS disk |
+| `SWAP_SIZE_MB` | `10240` | `ResourceDisk.SwapSizeMB` value (legacy data layer used `16384`) |
 
 ### `mount-azure-fileshare.sh`
 

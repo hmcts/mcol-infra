@@ -42,13 +42,13 @@ All subnets use the `mcol-rt-{env}` route table, which sends traffic to the hub 
 
 | VM Name                    | Environments | VM SKU             | Operating System | Zone | Role |
 | -------------------------- | ------------ | ------------------ | ---------------- | ---- | ---- |
-| mcol-web-vm01-{env}        | stg, prod    | Standard D2s v6    | Ubuntu 22.04     | 1    | Apache container |
-| mcol-web-vm02-{env}        | stg, prod    | Standard D2s v6    | Ubuntu 22.04     | 2    | Apache container |
-| mcol-app-vm01-{env}        | stg, prod    | Standard D4s v6    | Ubuntu 22.04     | 1    | MCOL + QAS containers |
-| mcol-app-vm02-{env}        | stg, prod    | Standard D4s v6    | Ubuntu 22.04     | 2    | MCOL + QAS containers |
-| mcol-db-vm01-{env}         | stg, prod    | Standard E4-2s v5  | RHEL 9.6         | 1    | Oracle 19c (prod: Data Guard primary) |
-| mcol-db-vm02-prod          | prod         | Standard E4-2s v5  | RHEL 9.6         | 2    | Oracle 19c Data Guard standby |
-| mcol-dbmig-vm01-{env}      | stg, prod    | Standard E4-2s v5  | RHEL 7.9         | 1    | Temporary Oracle 12c restore and upgrade |
+| mcol-web-vm01-{env}        | stg, prod    | Standard D2ds v5   | Ubuntu 22.04     | 1    | Apache container |
+| mcol-web-vm02-{env}        | stg, prod    | Standard D2ds v5   | Ubuntu 22.04     | 2    | Apache container |
+| mcol-app-vm01-{env}        | stg, prod    | Standard D4ds v5   | Ubuntu 22.04     | 1    | MCOL + QAS containers |
+| mcol-app-vm02-{env}        | stg, prod    | Standard D4ds v5   | Ubuntu 22.04     | 2    | MCOL + QAS containers |
+| mcol-db-vm01-{env}         | stg, prod    | Standard E4-2ds v5 | RHEL 9.6         | 1    | Oracle 19c (prod: Data Guard primary) |
+| mcol-db-vm02-prod          | prod         | Standard E4-2ds v5 | RHEL 9.6         | 2    | Oracle 19c Data Guard standby |
+| mcol-dbmig-vm01-{env}      | stg, prod    | Standard E4-2ds v5 | RHEL 7.9         | 1    | Temporary Oracle 12c restore and upgrade |
 
 All VMs have a 64 GiB Premium SSD OS disk. Production Oracle data disks mirror the legacy PMCOL database servers (128, 512 and 32 GiB Premium SSD plus a 512 GiB Standard SSD export volume on each node); Pre-Production uses the same LUN layout sized for the pre-production estate. Final capacity, IOPS and mount points remain subject to CGI DBA team confirmation per the LLD.
 
@@ -101,10 +101,10 @@ Idempotent Run Command scripts ported from the legacy estate's setup Ansible
 (oracle-azure-infrastructure) live in `scripts/run-commands/`. They cover the
 per-tier, per-base-image configuration that the legacy Packer images used to
 carry — Oracle prerequisites for RHEL 7 and RHEL 9, data-disk mounting,
-swapfile and firewall handling. The `vm` component creates one
+swap and firewall handling. The `vm` component creates one
 `azurerm_virtual_machine_run_command` per VM that needs post-deployment
 setup: the full combined script on the database VMs, and a share-mount plus
-swapfile script on the Ubuntu web/app Docker hosts. The legacy Azure Files share
+swap script on the Ubuntu web/app Docker hosts. The legacy Azure Files share
 key is passed to each command through a protected parameter sourced from the
 secure `TF_VAR_fileshare_storage_account_key` pipeline variable, which
 `azure-pipelines.yaml` maps explicitly into the `vm` component's Terraform
