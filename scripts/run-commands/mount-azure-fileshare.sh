@@ -100,7 +100,10 @@ mkdir -p "$PENDING_DIR"
 if [[ "$needs_remount" -eq 1 ]]; then touch "$PENDING_MARKER"; fi
 [[ ! -e "$PENDING_MARKER" ]] || needs_remount=1
 
-current_src="$(findmnt -rn -M "$MOUNT_DIR" -o SOURCE 2>/dev/null || true)"
+current_src=""
+if mountpoint -q "$MOUNT_DIR"; then
+  current_src="$(findmnt -rn -o SOURCE --target "$MOUNT_DIR" 2>/dev/null || awk -v mp="$MOUNT_DIR" '$2 == mp { print $1; exit }' /proc/mounts 2>/dev/null || true)"
+fi
 if [[ "$current_src" == "$REMOTE" && "$needs_remount" -eq 0 ]]; then
   log "$MOUNT_DIR already mounted"
 else

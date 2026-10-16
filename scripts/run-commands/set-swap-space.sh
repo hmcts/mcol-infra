@@ -106,8 +106,10 @@ resolve_resource_partition() {
   done
   # Fall back to wherever it is currently mounted.
   for candidate in "$MOUNT_POINT" /mnt; do
-    src="$(findmnt -rn -M "$candidate" -o SOURCE 2>/dev/null || true)"
-    if [[ -n "$src" && -b "$src" ]]; then readlink -f "$src"; return 0; fi
+    if mountpoint -q "$candidate"; then
+      src="$(findmnt -rn -o SOURCE --target "$candidate" 2>/dev/null || awk -v mp="$candidate" '$2 == mp { print $1; exit }' /proc/mounts 2>/dev/null || true)"
+      if [[ -n "$src" && -b "$src" ]]; then readlink -f "$src"; return 0; fi
+    fi
   done
   # Unpartitioned temp disk: use the whole device.
   for candidate in /dev/disk/azure/resource /dev/disk/cloud/azure_resource; do
@@ -138,13 +140,16 @@ fi
 
 # Move the temp disk off /mnt if cloud-init (or anything else) mounted it
 # there. Only touch /mnt if it really is the temp disk.
-mnt_src="$(findmnt -rn -M /mnt -o SOURCE 2>/dev/null || true)"
+mnt_src=""
+if mountpoint -q /mnt; then
+  mnt_src="$(findmnt -rn -o SOURCE --target /mnt 2>/dev/null || awk '$2 == "/mnt" { print $1; exit }' /proc/mounts 2>/dev/null || true)"
+fi
 submounts=()
 if [[ -n "$mnt_src" && "$(readlink -f "$mnt_src")" == "$res_part" ]]; then
   if swap_active /mnt/swapfile; then swapoff /mnt/swapfile; fi
   # Recursive: a share mounted at /mnt/build on top of the temp disk would
   # otherwise keep /mnt busy. Those submounts are remounted from fstab below.
-  mapfile -t submounts < <(findmnt -rn -R -o TARGET /mnt | tail -n +2)
+  mapfile -t submounts < <(awk '$2 ~ /^\/mnt\/.+/ { print $2 }' /proc/mounts 2>/dev/null || findmnt -rn -R -o TARGET /mnt 2>/dev/null | tail -n +2 || true)
   umount -R /mnt
   log "unmounted temporary disk from /mnt"
 fi
