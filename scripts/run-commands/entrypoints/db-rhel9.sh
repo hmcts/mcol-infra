@@ -5,10 +5,11 @@
 # file last; do not run it standalone.
 
 mcol_main() {
-  # Azure Run Command passes parameters as positional arguments, in the order
-  # of the parameter / protected_parameter blocks in
-  # components/vm/30-run-commands.tf (public first, then protected); map them
-  # to the names the component scripts read. Already-set variables win.
+  # Azure Managed Run Command sets named parameter / protected_parameter
+  # blocks in components/vm/30-run-commands.tf as environment variables of the
+  # same name, while az vm run-command invoke --parameters passes positional
+  # arguments (in block order: public first, then protected). Support both;
+  # already-set environment variables win.
   if [[ -z "${MOUNTS:-}" && $# -ge 1 ]]; then MOUNTS="${1}"; fi
   export MOUNTS
   if [[ -z "${SWAP_SIZE_MB:-}" && $# -ge 2 ]]; then SWAP_SIZE_MB="${2}"; fi
@@ -28,7 +29,7 @@ mcol_main() {
   else
     log "no data-disk mount paths configured — skipping mount-drives"
   fi
-  log "step 3/6: configuring waagent resource-disk swap"
+  log "step 3/6: configuring resource-disk swap (mcol-resource-swap.service)"
   set_swap_space_main
   log "step 4/6: mounting Azure Files share"
   mount_azure_fileshare_main

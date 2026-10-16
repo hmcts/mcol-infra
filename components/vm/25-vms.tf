@@ -62,4 +62,6 @@ resource "azurerm_virtual_machine_extension" "AADSSHLoginForLinux" {
   type_handler_version       = "1.0"
   auto_upgrade_minor_version = true
   tags                       = module.ctags.common_tags
+
+  depends_on = [module.virtual-machines]
 }

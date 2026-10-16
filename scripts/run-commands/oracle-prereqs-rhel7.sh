@@ -155,17 +155,23 @@ oracle_prereqs_main() {
   # Some packages (e.g. compat-libcap1, motif-devel) live in the optional
   # repo, which is disabled by default on Azure RHUI images. Enable it for these
   # installs only (a glob that matches no repo is not an error).
+  # Try a single batch transaction first for speed; only fall back to the
+  # per-package loop if the batch fails so one unavailable package does not
+  # mask the rest.
   log "installing ${#packages[@]} packages (yum, optional repo enabled for this run)"
-  local pkg
-  local -a failed=()
-  for pkg in "${packages[@]}"; do
-    if ! yum -y --enablerepo='*optional-rpms' install "$pkg" >/dev/null 2>&1; then
-      failed+=("$pkg")
-      log "warning: failed to install $pkg"
+  if ! yum -y --enablerepo='*optional-rpms' install "${packages[@]}" >/dev/null 2>&1; then
+    log "batch install returned non-zero — retrying packages individually to isolate failures"
+    local pkg
+    local -a failed=()
+    for pkg in "${packages[@]}"; do
+      if ! yum -y --enablerepo='*optional-rpms' install "$pkg" >/dev/null 2>&1; then
+        failed+=("$pkg")
+        log "warning: failed to install $pkg"
+      fi
+    done
+    if [[ "${#failed[@]}" -gt 0 ]]; then
+      die "package installation failed for: ${failed[*]} (check enabled repos, e.g. rhel-7-server-optional-rpms)"
     fi
-  done
-  if [[ "${#failed[@]}" -gt 0 ]]; then
-    die "package installation failed for: ${failed[*]} (check enabled repos, e.g. rhel-7-server-optional-rpms)"
   fi
 
   # Oracle groups and user

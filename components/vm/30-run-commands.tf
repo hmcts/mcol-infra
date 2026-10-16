@@ -42,7 +42,7 @@ locals {
   ]
   # The web/app Docker hosts (Ubuntu 22.04) need no Oracle or data-disk
   # configuration; the legacy setup playbook also mounted the build share on
-  # this tier. Swap is waagent resource-disk swap on the local temporary
+  # this tier. Swap is a swapfile on the local temporary
   # disk, as in the legacy estate — every VM SKU in this design
   # (D2ds_v5 / D4ds_v5 / E4-2ds_v5) has a temporary disk for it.
   docker_host_script_files = [
@@ -109,14 +109,27 @@ resource "azurerm_virtual_machine_run_command" "db_config" {
     value = var.storheritage003_build_share_key
   }
 
-  # Package installs run one at a time and can be slow on first boot. The
-  # provider has no timeout_in_seconds argument; it forwards the Terraform
-  # create timeout to Azure as the run command's timeoutInSeconds.
+  # Package installs can be slow on first boot. The provider has no
+  # timeout_in_seconds argument; it forwards the Terraform create/update
+  # timeout to Azure as the run command's timeoutInSeconds.
   timeouts {
     create = "60m"
+    update = "60m"
   }
 
   tags = module.ctags.common_tags
+
+  # Azure Managed Run Command sets ProvisioningState=Succeeded as soon as the
+  # extension handler finishes running the script, even when the script exits
+  # non-zero (treatFailureAsDeploymentFailure defaults to false in the API).
+  # Assert exit_code == 0 so a failing step aborts terraform apply with the
+  # captured stderr/stdout.
+  lifecycle {
+    postcondition {
+      condition     = try(self.instance_view[0].exit_code, 0) == 0 && try(self.instance_view[0].execution_state, "Succeeded") == "Succeeded"
+      error_message = "Run command ${self.name} on ${each.key} failed (exit_code=${try(self.instance_view[0].exit_code, -1)}, state=${try(self.instance_view[0].execution_state, "unknown")}): ${try(self.instance_view[0].error_message, "")} ${try(self.instance_view[0].output, "")}"
+    }
+  }
 
   # Wait for the whole VM module (including data disk attachments, which are
   # created inside it and not reflected in the vm_id output) so the
@@ -155,9 +168,17 @@ resource "azurerm_virtual_machine_run_command" "docker_host_config" {
 
   timeouts {
     create = "30m"
+    update = "30m"
   }
 
   tags = module.ctags.common_tags
+
+  lifecycle {
+    postcondition {
+      condition     = try(self.instance_view[0].exit_code, 0) == 0 && try(self.instance_view[0].execution_state, "Succeeded") == "Succeeded"
+      error_message = "Run command ${self.name} on ${each.key} failed (exit_code=${try(self.instance_view[0].exit_code, -1)}, state=${try(self.instance_view[0].execution_state, "unknown")}): ${try(self.instance_view[0].error_message, "")} ${try(self.instance_view[0].output, "")}"
+    }
+  }
 
   depends_on = [module.virtual-machines]
 }

@@ -34,7 +34,8 @@ ensure_cifs_utils() {
   fi
 
   if command -v apt-get >/dev/null 2>&1; then
-    DEBIAN_FRONTEND=noninteractive apt-get install -y cifs-utils
+    DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 update -y
+    DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 install -y cifs-utils
   elif command -v dnf >/dev/null 2>&1; then
     dnf -y install cifs-utils
   elif command -v yum >/dev/null 2>&1; then

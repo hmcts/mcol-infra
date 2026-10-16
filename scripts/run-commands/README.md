@@ -23,7 +23,7 @@ on failure.
 | `oracle-prereqs-rhel7.sh` | `oracle-config-rhel7` | As above for EL 7, plus the firewalld ICMP/port rules the RHEL 7 role applied |
 | `disable-firewall.sh` | `disable-firewall` | Stops and disables `firewalld`; NSGs enforce network policy |
 | `mount-drives.sh` | `mount-drives` | Formats (only if unformatted) and persistently mounts data disks |
-| `set-swap-space.sh` | `set-swap-space` | Configures waagent resource-disk swap; must run before `mount-azure-fileshare.sh` because the share mounts inside `/mnt`, which the swap step unmounts |
+| `set-swap-space.sh` | `set-swap-space` | Installs `mcol-resource-swap.service`, which keeps the temp disk at `/mnt/resource` with a swapfile on every boot; must run before `mount-azure-fileshare.sh` because the share mounts inside `/mnt`, which the swap step may unmount |
 | `mount-azure-fileshare.sh` | `mount-azure-fileshare` | Mounts the legacy `storheritage003/build` share over CIFS on each MCOL VM |
 
 The Oracle scripts refuse to run on the wrong major OS version, so the RHEL 7
@@ -37,11 +37,21 @@ and RHEL 9 variants cannot be applied to each other's VMs by mistake.
 | `mcol-dbmig-vm01` (temporary 12c restore/upgrade) | RHEL 7.9 | combined `dbmig-rhel7` run command (wired): `grow-rhel-lvs` → `mount-drives` → `set-swap-space` → `mount-azure-fileshare` → `oracle-prereqs-rhel7` |
 | `mcol-web/app-vm01/02` (Docker hosts) | Ubuntu 22.04 | combined `docker-host` run command (wired): `set-swap-space` → `mount-azure-fileshare` |
 
-Swap is waagent resource-disk swap on the local temporary disk, as in the
-legacy Ansible role: the `ResourceDisk.*` settings are written to
-`/etc/waagent.conf` and the agent restarted, so it formats the disk, mounts it
-at `/mnt/resource` and creates the swapfile (recreated at every boot). Every
-SKU in this design has a local temporary disk (`Standard_D2ds_v5`,
+Swap is a swapfile on the local temporary (resource) disk at
+`/mnt/resource/swapfile`, as in the legacy estate, but it is no longer
+delegated to waagent. On these cloud-init marketplace images cloud-init and
+waagent both manage the temp disk; after a deallocate/redeploy Azure presents a
+fresh NTFS disk that cloud-init remounts at `/mnt`, and waagent would then put
+swap at `/mnt/swapfile`. Instead, `set-swap-space.sh` installs
+`mcol-resource-swap.service` (helper `/usr/local/sbin/mcol-resource-swap`,
+size in `/etc/default/mcol-resource-swap`) as the single owner of the temp
+disk. At every boot — after cloud-init, before network mounts such as
+`/mnt/build` — it moves the disk from `/mnt` to `/mnt/resource` (dropping
+cloud-init's `/mnt` fstab entry), formats it as ext4 if fresh, and recreates and
+enables the swapfile. waagent's handling is disabled (`ResourceDisk.Format=n`,
+`ResourceDisk.EnableSwap=n`), and the agent is never restarted from inside the
+Run Command; the helper is simply run once immediately for the current boot.
+Every SKU in this design has a local temporary disk (`Standard_D2ds_v5`,
 `Standard_D4ds_v5`, and the policy-exempted `Standard_E4-2ds_v5` on the
 database VMs). The script also removes an OS-disk `/swapfile` left behind by
 the earlier swapfile-based version of this script.
@@ -70,9 +80,9 @@ on RHEL 9) — assembled in Terraform with `file()` + `join()` from
 
 | Combined script | VMs | Steps |
 | --------------- | --- | ----- |
-| `entrypoints/db-rhel9.sh` | `mcol-db-vm01/02` (RHEL 9.6) | grow LVs → mount drives → Azure Files → swap → Oracle prereqs → disable firewall |
-| `entrypoints/dbmig-rhel7.sh` | `mcol-dbmig-vm01` (RHEL 7.9) | grow LVs → mount drives → Azure Files → swap → Oracle prereqs |
-| `entrypoints/docker-host.sh` | `mcol-web/app-vm01/02` (Ubuntu 22.04) | Azure Files → swap |
+| `entrypoints/db-rhel9.sh` | `mcol-db-vm01/02` (RHEL 9.6) | grow LVs → mount drives → swap → Azure Files → Oracle prereqs → disable firewall |
+| `entrypoints/dbmig-rhel7.sh` | `mcol-dbmig-vm01` (RHEL 7.9) | grow LVs → mount drives → swap → Azure Files → Oracle prereqs |
+| `entrypoints/docker-host.sh` | `mcol-web/app-vm01/02` (Ubuntu 22.04) | swap → Azure Files |
 
 The scripts are function-based: each defines a `*_main` and only self-executes
 when run directly (the `_prologue.sh` marker suppresses that in the combined
@@ -162,7 +172,7 @@ accept either: export the named variables, or pass values in this order
 | ------ | ---------------- |
 | `mount-drives.sh` | `MOUNTS`, `DIR_MODE` |
 | `mount-azure-fileshare.sh` | `STORAGE_ACCOUNT_NAME`, `STORAGE_ACCOUNT_KEY`, `FILE_SHARE` |
-| `set-swap-space.sh` | `SWAP_SIZE_MB`, `SWAP_FILE` |
+| `set-swap-space.sh` | `SWAP_SIZE_MB` |
 | `grow-rhel-lvs.sh` | `OPT_MIN_SIZE_GIB`, `VAR_MIN_SIZE_GIB` |
 
 The combined entrypoints used by Terraform map their own positional order (see
@@ -193,7 +203,7 @@ MOUNTS="/dev/disk/azure/scsi1/lun10:/opt/moj;/dev/disk/azure/scsi1/lun11:/u01;/d
 
 | Parameter | Default | Purpose |
 | --------- | ------- | ------- |
-| `SWAP_SIZE_MB` | `10240` | `ResourceDisk.SwapSizeMB` value (legacy data layer used `16384`) |
+| `SWAP_SIZE_MB` | `10240` | Size of `/mnt/resource/swapfile` in MiB, persisted to `/etc/default/mcol-resource-swap` (legacy data layer used `16384`) |
 
 ### `mount-azure-fileshare.sh`
 
