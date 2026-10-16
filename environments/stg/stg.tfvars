@@ -234,7 +234,7 @@ install_azure_monitor = true
 # from-scratch first deploy; once the run commands converge, this steady
 # state is true so the extension installs cleanly. See
 # components/vm/11-inputs-optional.tf.
-install_dynatrace_oneagent = true
+install_dynatrace_oneagent = false
 
 web_vms = {
   mcol-web-vm01-stg = {
