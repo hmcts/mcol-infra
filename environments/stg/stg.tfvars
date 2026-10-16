@@ -230,11 +230,10 @@ install_azure_monitor = true
 
 # Dynatrace OneAgent needs >1.72 GiB free on /opt, which only the run
 # commands' grow-rhel-lvs step provides on the RHEL marketplace images, and
-# the extension installs before run commands can run. Set false on a
-# from-scratch first deploy; once the run commands converge, this steady
-# state is true so the extension installs cleanly. See
-# components/vm/11-inputs-optional.tf.
-install_dynatrace_oneagent = false
+# the extension installs before run commands can run. The RHEL run commands
+# have converged in Staging, so OneAgent can now install cleanly. Keep false
+# only for a from-scratch first deploy. See components/vm/11-inputs-optional.tf.
+install_dynatrace_oneagent = true
 
 web_vms = {
   mcol-web-vm01-stg = {
