@@ -159,9 +159,10 @@ oracle_prereqs_main() {
   # per-package loop if the batch fails so one unavailable package does not
   # mask the rest.
   # Exclude the unrelated .NET RHUI repo, whose metadata can return HTTP 400
-  # on Azure RHEL 7 images. Keep this transaction-local for both install paths.
+  # on Azure RHEL 7 images. The glob tolerates an absent repo. Keep this
+  # transaction-local for both install paths.
   local -a yum_repo_options=(
-    --disablerepo='rhui-rhel-7-server-dotnet-rhui-rpms'
+    --disablerepo='rhui-rhel-7-server-dotnet-rhui-rpms*'
     --enablerepo='*optional-rpms'
   )
   log "installing ${#packages[@]} packages (yum, optional repo enabled for this run)"

@@ -69,18 +69,43 @@ locals {
 
   # The migration VM is RHEL 7.9 (image sku 79-gen2); the permanent Oracle
   # servers are RHEL 9.6 (96-gen2).
-  db_swap_size_mb = "16384"
+  run_command_storage_account_name = "storheritage003"
+  run_command_file_share           = "build"
+  db_swap_size_mb                  = "16384"
   # Legacy MCOL web/app layers both used a 10240MB swapfile.
   docker_host_swap_size_mb = "10240"
 
   db_run_command_script = { for name, vm in var.db_vms : name => substr(vm.image.sku, 0, 1) == "7" ? local.dbmig_rhel7_script : local.db_rhel9_script }
   db_run_command_name   = { for name, vm in var.db_vms : name => substr(vm.image.sku, 0, 1) == "7" ? "mcol-dbmig-rhel7-config" : "mcol-db-rhel9-config" }
+
+  # AzureRM 4.22.0 only resends protected parameters on update if the key
+  # changes; Azure's GET response omits them. A configuration-derived name
+  # forces recreation when non-secret inputs change, so CREATE sends the key.
+  # The first rollout also replaces existing commands with unsuffixed names.
+  # Only Run Command resources are replaced; VMs and disks are unaffected.
+  db_run_command_revision = {
+    for name, vm in var.db_vms : name => substr(sha256(jsonencode({
+      script               = local.db_run_command_script[name]
+      mounts               = local.db_data_disk_mounts[name]
+      swap_size_mb         = local.db_swap_size_mb
+      storage_account_name = local.run_command_storage_account_name
+      file_share           = local.run_command_file_share
+      tags                 = module.ctags.common_tags
+    })), 0, 12)
+  }
+  docker_host_run_command_revision = substr(sha256(jsonencode({
+    script               = local.docker_host_script
+    swap_size_mb         = local.docker_host_swap_size_mb
+    storage_account_name = local.run_command_storage_account_name
+    file_share           = local.run_command_file_share
+    tags                 = module.ctags.common_tags
+  })), 0, 12)
 }
 
 resource "azurerm_virtual_machine_run_command" "db_config" {
   for_each = var.db_vms
 
-  name               = local.db_run_command_name[each.key]
+  name               = "${local.db_run_command_name[each.key]}-${local.db_run_command_revision[each.key]}"
   location           = var.location
   virtual_machine_id = module.virtual-machines[each.key].vm_id
 
@@ -98,11 +123,11 @@ resource "azurerm_virtual_machine_run_command" "db_config" {
   }
   parameter {
     name  = "STORAGE_ACCOUNT_NAME"
-    value = "storheritage003"
+    value = local.run_command_storage_account_name
   }
   parameter {
     name  = "FILE_SHARE"
-    value = "build"
+    value = local.run_command_file_share
   }
   protected_parameter {
     name  = "STORAGE_ACCOUNT_KEY"
@@ -141,7 +166,7 @@ resource "azurerm_virtual_machine_run_command" "db_config" {
 resource "azurerm_virtual_machine_run_command" "docker_host_config" {
   for_each = merge(var.web_vms, var.app_vms)
 
-  name               = "mcol-docker-host-config"
+  name               = "mcol-docker-host-config-${local.docker_host_run_command_revision}"
   location           = var.location
   virtual_machine_id = module.virtual-machines[each.key].vm_id
 
@@ -155,11 +180,11 @@ resource "azurerm_virtual_machine_run_command" "docker_host_config" {
   }
   parameter {
     name  = "STORAGE_ACCOUNT_NAME"
-    value = "storheritage003"
+    value = local.run_command_storage_account_name
   }
   parameter {
     name  = "FILE_SHARE"
-    value = "build"
+    value = local.run_command_file_share
   }
   protected_parameter {
     name  = "STORAGE_ACCOUNT_KEY"

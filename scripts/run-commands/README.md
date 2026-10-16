@@ -146,6 +146,15 @@ nightly drift detection do **not** re-run the scripts or correct drift on the
 VM. To force a re-run, change the script/parameters or use the one-off
 `az vm run-command invoke` flow below.
 
+Run Command names include a stable hash of their script, public parameters,
+and tags. Changing those inputs replaces the Run Command resource and reruns
+setup, leaving the VM and disks intact. This works around AzureRM 4.22.0's
+update path omitting unchanged protected parameters, which otherwise causes
+`STORAGE_ACCOUNT_KEY is not set` on script updates. The initial rollout replaces
+existing commands with unsuffixed names as well. The storage key stays in
+`protected_parameter` and is excluded from the hash and command name; key
+rotation still uses the provider's update path, which sends the changed key.
+
 Mounts are built per VM from the `data_disks` entries in tfvars that set
 `mount_path`; disks without a `mount_path` are attached but not mounted. Each
 run command has a `timeout_in_seconds` (3600 for DB VMs, 1800 for Docker hosts).
@@ -154,7 +163,8 @@ repos for the package installs only. The `depends_on` waits on every VM in the
 module (data-disk attachments live inside it), which is coarse but safe.
 
 The yum-based CIFS install and RHEL 7 Oracle prerequisite installs exclude
-`rhui-rhel-7-server-dotnet-rhui-rpms` for those transactions only. This unrelated
+`rhui-rhel-7-server-dotnet-rhui-rpms*` for those transactions only. The glob
+also permits images where this repository is absent. This unrelated
 .NET repository can return HTTP 400 for its metadata and block the migration
 VM setup before the Azure Files share is mounted. Required package/repository
 failures still fail setup; the VM's persistent repository configuration is

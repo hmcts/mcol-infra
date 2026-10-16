@@ -41,7 +41,8 @@ ensure_cifs_utils() {
   elif command -v yum >/dev/null 2>&1; then
     # The Azure RHEL 7 .NET RHUI repo can fail metadata requests with HTTP
     # 400. CIFS needs no .NET packages; exclude it for this transaction only.
-    yum -y --disablerepo='rhui-rhel-7-server-dotnet-rhui-rpms' install cifs-utils
+    # A glob also tolerates images where this repo is absent.
+    yum -y --disablerepo='rhui-rhel-7-server-dotnet-rhui-rpms*' install cifs-utils
   else
     die "cannot install cifs-utils: no supported package manager found"
   fi
