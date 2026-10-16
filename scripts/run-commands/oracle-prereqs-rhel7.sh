@@ -158,13 +158,19 @@ oracle_prereqs_main() {
   # Try a single batch transaction first for speed; only fall back to the
   # per-package loop if the batch fails so one unavailable package does not
   # mask the rest.
+  # Exclude the unrelated .NET RHUI repo, whose metadata can return HTTP 400
+  # on Azure RHEL 7 images. Keep this transaction-local for both install paths.
+  local -a yum_repo_options=(
+    --disablerepo='rhui-rhel-7-server-dotnet-rhui-rpms'
+    --enablerepo='*optional-rpms'
+  )
   log "installing ${#packages[@]} packages (yum, optional repo enabled for this run)"
-  if ! yum -y --enablerepo='*optional-rpms' install "${packages[@]}" >/dev/null 2>&1; then
+  if ! yum -y "${yum_repo_options[@]}" install "${packages[@]}" >/dev/null 2>&1; then
     log "batch install returned non-zero — retrying packages individually to isolate failures"
     local pkg
     local -a failed=()
     for pkg in "${packages[@]}"; do
-      if ! yum -y --enablerepo='*optional-rpms' install "$pkg" >/dev/null 2>&1; then
+      if ! yum -y "${yum_repo_options[@]}" install "$pkg" >/dev/null 2>&1; then
         failed+=("$pkg")
         log "warning: failed to install $pkg"
       fi

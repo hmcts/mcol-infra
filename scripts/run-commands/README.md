@@ -153,6 +153,14 @@ The Oracle prerequisite scripts enable the CRB (RHEL 9) / optional (RHEL 7)
 repos for the package installs only. The `depends_on` waits on every VM in the
 module (data-disk attachments live inside it), which is coarse but safe.
 
+The yum-based CIFS install and RHEL 7 Oracle prerequisite installs exclude
+`rhui-rhel-7-server-dotnet-rhui-rpms` for those transactions only. This unrelated
+.NET repository can return HTTP 400 for its metadata and block the migration
+VM setup before the Azure Files share is mounted. Required package/repository
+failures still fail setup; the VM's persistent repository configuration is
+unchanged. If other RHUI repositories also fail, check the image's RHUI client
+configuration using [Microsoft's RHUI troubleshooting guide](https://learn.microsoft.com/en-us/troubleshoot/azure/virtual-machines/linux/troubleshoot-linux-rhui-certificate-issues).
+
 ### One-off via the Azure CLI
 
 ```bash
