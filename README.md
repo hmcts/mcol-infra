@@ -4,7 +4,7 @@
 
 Money Claim Online (MCOL) tech refresh infrastructure. The refresh replaces the legacy RHEL 7 OHS/WebLogic web and application servers with Ubuntu 22.04 Docker hosts running Apache, MCOL and QAS containers, and upgrades the database tier to Oracle 19c on RHEL 9.
 
-The refreshed estate is built alongside the legacy MCOL hosts in the Heritage External Services spoke VNets (`vnet-{nle,prod}-ext-01`), in new web, app and data subnets created by this repository. The VNets, Front Door and the legacy MCOL estate (including the retained private load balancers) are managed by [hmcts/oracle-azure-infrastructure](https://github.com/hmcts/oracle-azure-infrastructure).
+The refreshed estate is built alongside the legacy MCOL hosts in the Heritage External Services spoke VNets (`vnet-{nle,prod}-ext-01`), in the existing MCOL web, app and data subnets. The VNets, subnets, NSGs, route tables, Front Door and the legacy MCOL estate (including its private load balancers) are managed by [hmcts/oracle-azure-infrastructure](https://github.com/hmcts/oracle-azure-infrastructure).
 
 Resource group: `mcol-rg-{env}`
 KeyVault: `mcol-kv-{env}` (VM credentials). Application secrets remain in `mcol-{env}-kv`.
@@ -23,20 +23,20 @@ KeyVault: `mcol-kv-{env}` (VM credentials). Application secrets remain in `mcol-
 
 | Component       | Purpose |
 | --------------- | ------- |
-| `core`          | Resource group, key vault, recovery services vault, daily backup policy, subnets, route table and NSGs (via `terraform-module-dlrm-core-infra`). |
+| `core`          | Resource group, key vault, recovery services vault, daily backup policy and storage account (via `terraform-module-dlrm-core-infra`). The storage account firewall allows the existing MCOL subnets. |
 | `vm`            | Web, application, Oracle and temporary migration VMs, data disks, backup protection and Entra ID SSH login. |
-| `load-balancer` | Adds tech-refresh VM NICs to the backend pools of the retained web and application load balancers. |
-| `rbac`          | VM login role assignments per tier, Key Vault Secrets User on the application key vault, and AcrPull for the Docker hosts. |
+| `load-balancer` | Private web and application load balancers, with the tech-refresh VMs as backends. |
+| `rbac`          | VM login role assignments per tier, Key Vault Secrets User on the application key vault, the equivalent Get/List secrets access policy on `mcol-kv-{env}` for the application VMs, and AcrPull for the Docker hosts. |
 
 ## Network
 
-| Subnet          | Staging            | Production         |
-| --------------- | ------------------ | ------------------ |
-| mcol-web-{env}  | 10.25.249.96/27    | 10.24.249.96/27    |
-| mcol-app-{env}  | 10.25.249.128/27   | 10.24.249.128/27   |
-| mcol-data-{env} | 10.25.249.160/27   | 10.24.249.160/27   |
+The VMs are deployed into the existing MCOL subnets, shared with the legacy MCOL hosts. This repository only looks the subnets up; their NSGs (`MCOL-{WEB,APP,DATA}-NSG`) and route table (`{NLE,PROD}-EXTERNAL-NONAT-RT`) are managed in oracle-azure-infrastructure, so any new flows the tech-refresh VMs need must be added there.
 
-All subnets use the `mcol-rt-{env}` route table, which sends traffic to the hub firewall in the same way as the legacy `{NLE,PROD}-EXTERNAL-NONAT-RT`. Application, CaseMan and SDP access to Oracle is limited to the permanent database servers, which keeps the migration VM isolated from live traffic. NSGs are deny-by-default and only permit the flows defined in the LLD; in production the Oracle primary and standby may reach each other on 1521 for Data Guard.
+| Subnet (Staging / Production)   | Staging          | Production       |
+| ------------------------------- | ---------------- | ---------------- |
+| MCOL-Web-NLE / MCOL-Web-PROD    | 10.25.248.0/27   | 10.24.248.0/27   |
+| MCOL-App-NLE / MCOL-App-PROD    | 10.25.248.32/27  | 10.24.248.32/27  |
+| MCOL-Data-NLE / MCOL-Data-PROD  | 10.25.248.64/27  | 10.24.248.64/27  |
 
 ## VM Details
 
@@ -54,23 +54,26 @@ All VMs have a 64 GiB Premium SSD OS disk. Production Oracle data disks mirror t
 
 ## First deployment
 
-Components depend on each other through data sources (`vm`, `load-balancer` and `rbac` read the subnets, key vault and backup policy created by `core`; `core` for prod is gated on stg). On a fresh environment a plan-only run therefore cannot succeed for the dependent components, because the resources they look up do not exist yet. This is the same behaviour as the reference `sdrs-infra` / `crime-portal-infra` pipelines. Bootstrap by running the pipeline manually from `main` with `overrideAction: apply`: stages run in dependency order (`stg_core` → `stg_vm` → `stg_load_balancer`/`stg_rbac` → `prod_core` → …), so each stage creates what the next one reads. Once an environment exists, normal PR plans work for all components. Until then, expect the `vm`, `load-balancer` and `rbac` plans for that environment to fail on missing data sources.
+Components depend on each other through data sources (`vm` reads the key vault and backup policy created by `core`, `load-balancer` and `rbac` read the VMs created by `vm`; `core` for prod is gated on stg). On a fresh environment a plan-only run therefore cannot succeed for the dependent components, because the resources they look up do not exist yet. This is the same behaviour as the reference `sdrs-infra` / `crime-portal-infra` pipelines. Bootstrap by running the pipeline manually from `main` with `overrideAction: apply`: stages run in dependency order (`stg_core` → `stg_vm` → `stg_load_balancer`/`stg_rbac` → `prod_core` → …), so each stage creates what the next one reads. Once an environment exists, normal PR plans work for all components. Until then, expect the `vm`, `load-balancer` and `rbac` plans for that environment to fail on missing data sources.
 
-## Load balancer cutover
+## Load balancers
 
-Traffic cutover and rollback are controlled by backend pool membership on the retained load balancers (`{n,p}mcol-pri-lb-01` web, `{n,p}mcol-pri-lb-02` application):
+The `load-balancer` component deploys new private Standard load balancers into `mcol-rg-{env}`, with zone-redundant frontends (zones 1 and 2), SourceIP distribution and TCP health probes. The backend pools contain only the tech-refresh VMs, added by private IP. The legacy `{n,p}mcol-pri-lb-01` / `-02` load balancers stay in oracle-azure-infrastructure and serve only the legacy hosts.
 
-1. Add the new VM names to `load_balancer_backends` in the environment tfvars and apply the `load-balancer` component.
-2. Remove the legacy NICs from `nic_names` / `nic_names_web` in oracle-azure-infrastructure.
-3. Roll back by reversing these steps.
+| Load balancer      | Frontend (Staging / Production) | Rules                                         |
+| ------------------ | ------------------------------- | --------------------------------------------- |
+| `mcol-web-lb-{env}` | 10.25.248.9 / 10.24.248.9      | 8025/TCP → 8003/TCP, 8026/TCP → 8004/TCP      |
+| `mcol-app-lb-{env}` | 10.25.248.41 / 10.24.248.41    | 8005/TCP → 8005/TCP                           |
+
+Traffic cutover and rollback are controlled by where the upstream callers point, not by backend pool membership: the shared ingress path is repointed from the legacy web frontend to `mcol-web-lb-{env}`, and the Apache containers send application traffic to `mcol-app-lb-{env}`. Roll back by pointing the shared ingress back to the legacy web frontend.
 
 ## Temporary migration VMs
 
-`mcol-dbmig-vm01-{env}` sits in the data subnet in zone 1, so its upgraded data disk can be attached to the zone 1 primary. It accepts SSH and Oracle traffic from the legacy MCOL data subnet for the migration; the matching rule on the legacy `MCOL-DATA-NSG` is in oracle-azure-infrastructure (`mcol-tr-migration-allow-in`). Once migration is complete, retire the VM in this order, because its data disks are managed by the VM's own entry in `db_vms` and removing the entry would otherwise plan their destruction:
+`mcol-dbmig-vm01-{env}` sits in the data subnet in zone 1, so its upgraded data disk can be attached to the zone 1 primary. It shares the data subnet with the legacy MCOL Oracle hosts, so migration traffic is covered by the intra-subnet rule on `MCOL-DATA-NSG` in oracle-azure-infrastructure, while `mcol-tr-migration-isolation-deny-in` on the same NSG keeps application, CaseMan and SDP traffic away from it. Once migration is complete, retire the VM in this order, because its data disks are managed by the VM's own entry in `db_vms` and removing the entry would otherwise plan their destruction:
 
 1. The CGI DBA team detaches the upgraded data disk(s) from the migration VM and attaches them to the primary (outside Terraform).
 2. List the migration VM's disk resources with `terraform state list | grep dbmig` (in the `vm` component for that environment) and `terraform state rm` the managed disk and data-disk attachment entries for each disk that has been transferred, so Terraform stops tracking them.
-3. Remove the VM from `db_vms`, and both NSG rules.
+3. Remove the VM from `db_vms`, and `mcol-tr-migration-isolation-deny-in` (plus the production `legacy-data-migration-allow-in`) from `MCOL-DATA-NSG` in oracle-azure-infrastructure.
 4. Check the plan: it must destroy only the migration VM, its NIC and its OS disk (and any untransferred disks), and must not destroy any transferred disk.
 
 ## VM Access

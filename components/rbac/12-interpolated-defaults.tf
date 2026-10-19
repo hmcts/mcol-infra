@@ -108,6 +108,11 @@ data "azurerm_virtual_machine" "docker_vms" {
   resource_group_name = local.resource_group_name
 }
 
+data "azurerm_key_vault" "core" {
+  name                = "mcol-kv-${var.env}"
+  resource_group_name = local.resource_group_name
+}
+
 data "azurerm_key_vault" "application" {
   count               = var.application_key_vault == null ? 0 : 1
   name                = var.application_key_vault.name

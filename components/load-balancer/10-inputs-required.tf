@@ -13,20 +13,41 @@ variable "product" {
   description = "The name of the product this infrastructure supports."
 }
 
-variable "legacy_resource_group_name" {
-  type        = string
-  description = "The resource group holding the retained MCOL load balancers (managed by hmcts/oracle-azure-infrastructure)."
-}
-
-variable "load_balancer_backends" {
+variable "load_balancers" {
   type = map(object({
-    load_balancer_name    = string
-    backend_pool_name     = optional(string, "BackEndAddressPool")
-    virtual_machine_names = optional(list(string), [])
+    name     = string
+    sku      = string
+    sku_tier = optional(string, "Regional")
+    frontend_ip_configurations = map(object({
+      subnet_name                   = string
+      private_ip_address            = optional(string)
+      private_ip_address_allocation = optional(string, "Dynamic")
+      zones                         = optional(list(string), ["1", "2", "3"])
+    }))
+    backend_address_pools = map(object({
+      virtual_machine_names = optional(list(string), [])
+    }))
+    probes = map(object({
+      protocol            = string
+      port                = number
+      request_path        = optional(string)
+      interval            = optional(number, 15)
+      threshold           = optional(number, 1)
+      unhealthy_threshold = optional(number, 3)
+    }))
+    rules = map(object({
+      protocol                       = string
+      frontend_port                  = number
+      backend_port                   = number
+      frontend_ip_configuration_name = string
+      backend_address_pool_names     = list(string)
+      probe_name                     = optional(string)
+      load_distribution              = optional(string, "Default")
+      enable_floating_ip             = optional(bool, false)
+      enable_tcp_reset               = optional(bool, false)
+      idle_timeout_in_minutes        = optional(number, 4)
+      disable_outbound_snat          = optional(bool, false)
+    }))
   }))
-  description = <<-EOT
-    Tech-refresh VMs to add to the backend pools of the retained MCOL load balancers.
-    Adding or removing VM names is the traffic cutover / rollback control; legacy NIC membership
-    stays in hmcts/oracle-azure-infrastructure.
-  EOT
+  description = "The private web and application tier load balancers, keyed by tier."
 }
