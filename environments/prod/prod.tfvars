@@ -5,7 +5,7 @@ subscription_id = "c170c61a-f00f-4295-a718-634e27af1597"
 
 install_azure_monitor = true
 
-install_dynatrace_oneagent = false
+install_dynatrace_oneagent = true
 
 web_vms = {
   mcol-web-vm01-prod = {
