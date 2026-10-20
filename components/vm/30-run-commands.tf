@@ -22,30 +22,33 @@ locals {
   # the entrypoint (last) invokes the per-step mains in order.
   db_rhel9_script_files = [
     "entrypoints/_prologue.sh",
+    "grow-rhel-lvs.sh",
     "mount-drives.sh",
-    "mount-azure-fileshare.sh",
     "set-swap-space.sh",
+    "mount-azure-fileshare.sh",
     "oracle-prereqs-rhel9.sh",
     "disable-firewall.sh",
     "entrypoints/db-rhel9.sh",
   ]
   dbmig_rhel7_script_files = [
     "entrypoints/_prologue.sh",
+    "grow-rhel-lvs.sh",
     "mount-drives.sh",
-    "mount-azure-fileshare.sh",
     "set-swap-space.sh",
+    "mount-azure-fileshare.sh",
     "oracle-prereqs-rhel7.sh",
     "disable-firewall.sh",
     "entrypoints/dbmig-rhel7.sh",
   ]
   # The web/app Docker hosts (Ubuntu 22.04) need no Oracle or data-disk
   # configuration; the legacy setup playbook also mounted the build share on
-  # this tier. Swap is a swapfile on the OS disk: the LLD SKUs (Dsv6 / Esv5)
-  # have no local temporary disk for waagent resource-disk swap.
+  # this tier. Swap is a swapfile on the local temporary
+  # disk, as in the legacy estate — every VM SKU in this design
+  # (D2ds_v5 / D4ds_v5 / E4-2ds_v5) has a temporary disk for it.
   docker_host_script_files = [
     "entrypoints/_prologue.sh",
-    "mount-azure-fileshare.sh",
     "set-swap-space.sh",
+    "mount-azure-fileshare.sh",
     "entrypoints/docker-host.sh",
   ]
   db_rhel9_script    = join("\n", [for f in local.db_rhel9_script_files : file("${local.run_command_dir}/${f}")])
@@ -66,18 +69,43 @@ locals {
 
   # The migration VM is RHEL 7.9 (image sku 79-gen2); the permanent Oracle
   # servers are RHEL 9.6 (96-gen2).
-  db_swap_size_mb = "16384"
+  run_command_storage_account_name = "storheritage003"
+  run_command_file_share           = "build"
+  db_swap_size_mb                  = "16384"
   # Legacy MCOL web/app layers both used a 10240MB swapfile.
   docker_host_swap_size_mb = "10240"
 
   db_run_command_script = { for name, vm in var.db_vms : name => substr(vm.image.sku, 0, 1) == "7" ? local.dbmig_rhel7_script : local.db_rhel9_script }
   db_run_command_name   = { for name, vm in var.db_vms : name => substr(vm.image.sku, 0, 1) == "7" ? "mcol-dbmig-rhel7-config" : "mcol-db-rhel9-config" }
+
+  # AzureRM 4.22.0 only resends protected parameters on update if the key
+  # changes; Azure's GET response omits them. A configuration-derived name
+  # forces recreation when non-secret inputs change, so CREATE sends the key.
+  # The first rollout also replaces existing commands with unsuffixed names.
+  # Only Run Command resources are replaced; VMs and disks are unaffected.
+  db_run_command_revision = {
+    for name, vm in var.db_vms : name => substr(sha256(jsonencode({
+      script               = local.db_run_command_script[name]
+      mounts               = local.db_data_disk_mounts[name]
+      swap_size_mb         = local.db_swap_size_mb
+      storage_account_name = local.run_command_storage_account_name
+      file_share           = local.run_command_file_share
+      tags                 = module.ctags.common_tags
+    })), 0, 12)
+  }
+  docker_host_run_command_revision = substr(sha256(jsonencode({
+    script               = local.docker_host_script
+    swap_size_mb         = local.docker_host_swap_size_mb
+    storage_account_name = local.run_command_storage_account_name
+    file_share           = local.run_command_file_share
+    tags                 = module.ctags.common_tags
+  })), 0, 12)
 }
 
 resource "azurerm_virtual_machine_run_command" "db_config" {
   for_each = var.db_vms
 
-  name               = local.db_run_command_name[each.key]
+  name               = "${local.db_run_command_name[each.key]}-${local.db_run_command_revision[each.key]}"
   location           = var.location
   virtual_machine_id = module.virtual-machines[each.key].vm_id
 
@@ -95,21 +123,38 @@ resource "azurerm_virtual_machine_run_command" "db_config" {
   }
   parameter {
     name  = "STORAGE_ACCOUNT_NAME"
-    value = "storheritage003"
+    value = local.run_command_storage_account_name
   }
   parameter {
     name  = "FILE_SHARE"
-    value = "build"
+    value = local.run_command_file_share
   }
   protected_parameter {
     name  = "STORAGE_ACCOUNT_KEY"
-    value = var.fileshare_storage_account_key
+    value = var.storheritage003_build_share_key
   }
 
-  # Package installs run one at a time and can be slow on first boot.
-  timeout_in_seconds = 3600
+  # Package installs can be slow on first boot. The provider has no
+  # timeout_in_seconds argument; it forwards the Terraform create/update
+  # timeout to Azure as the run command's timeoutInSeconds.
+  timeouts {
+    create = "60m"
+    update = "60m"
+  }
 
   tags = module.ctags.common_tags
+
+  # Azure Managed Run Command sets ProvisioningState=Succeeded as soon as the
+  # extension handler finishes running the script, even when the script exits
+  # non-zero (treatFailureAsDeploymentFailure defaults to false in the API).
+  # Assert exit_code == 0 so a failing step aborts terraform apply with the
+  # captured stderr/stdout.
+  lifecycle {
+    postcondition {
+      condition     = try(self.instance_view[0].exit_code, 0) == 0 && try(self.instance_view[0].execution_state, "Succeeded") == "Succeeded"
+      error_message = "Run command ${self.name} on ${each.key} failed (exit_code=${try(self.instance_view[0].exit_code, -1)}, state=${try(self.instance_view[0].execution_state, "unknown")}): ${try(self.instance_view[0].error_message, "")} ${try(self.instance_view[0].output, "")}"
+    }
+  }
 
   # Wait for the whole VM module (including data disk attachments, which are
   # created inside it and not reflected in the vm_id output) so the
@@ -121,7 +166,7 @@ resource "azurerm_virtual_machine_run_command" "db_config" {
 resource "azurerm_virtual_machine_run_command" "docker_host_config" {
   for_each = merge(var.web_vms, var.app_vms)
 
-  name               = "mcol-docker-host-config"
+  name               = "mcol-docker-host-config-${local.docker_host_run_command_revision}"
   location           = var.location
   virtual_machine_id = module.virtual-machines[each.key].vm_id
 
@@ -135,20 +180,30 @@ resource "azurerm_virtual_machine_run_command" "docker_host_config" {
   }
   parameter {
     name  = "STORAGE_ACCOUNT_NAME"
-    value = "storheritage003"
+    value = local.run_command_storage_account_name
   }
   parameter {
     name  = "FILE_SHARE"
-    value = "build"
+    value = local.run_command_file_share
   }
   protected_parameter {
     name  = "STORAGE_ACCOUNT_KEY"
-    value = var.fileshare_storage_account_key
+    value = var.storheritage003_build_share_key
   }
 
-  timeout_in_seconds = 1800
+  timeouts {
+    create = "30m"
+    update = "30m"
+  }
 
   tags = module.ctags.common_tags
+
+  lifecycle {
+    postcondition {
+      condition     = try(self.instance_view[0].exit_code, 0) == 0 && try(self.instance_view[0].execution_state, "Succeeded") == "Succeeded"
+      error_message = "Run command ${self.name} on ${each.key} failed (exit_code=${try(self.instance_view[0].exit_code, -1)}, state=${try(self.instance_view[0].execution_state, "unknown")}): ${try(self.instance_view[0].error_message, "")} ${try(self.instance_view[0].output, "")}"
+    }
+  }
 
   depends_on = [module.virtual-machines]
 }

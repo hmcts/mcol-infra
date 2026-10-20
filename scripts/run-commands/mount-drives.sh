@@ -68,7 +68,7 @@ mount_drives_main() {
 
     [[ -b "$src" ]] || die "$src is not a block device on this VM"
 
-    if findmnt -rn -M "$path" >/dev/null 2>&1; then
+    if mountpoint -q "$path"; then
       # On a rerun this path is the mounted filesystem's root, not the hidden
       # mount-point directory. Leave the filesystem's permissions untouched.
       log "$path is already a mount point; leaving filesystem permissions unchanged"
@@ -89,7 +89,14 @@ mount_drives_main() {
     fs_created=0
     if ! blkid "$src" >/dev/null 2>&1; then
       log "no filesystem on $src — creating $fstype"
-      mkfs -t "$fstype" "$src"
+      # Force (y) the "entire device, not just one partition" check: Azure
+      # data disks are formatted whole-device, and Run Command has no stdin
+      # to answer the interactive prompt. mkfs.ext* uses -F, mkfs.xfs -f.
+      case "$fstype" in
+        ext2|ext3|ext4) mkfs -t "$fstype" -F "$src" ;;
+        xfs)            mkfs -t "$fstype" -f "$src" ;;
+        *)              mkfs -t "$fstype" "$src" ;;
+      esac
       fs_created=1
     else
       existing="$(blkid -o value -s TYPE "$src")"
@@ -99,8 +106,13 @@ mount_drives_main() {
 
     md_ensure_fstab_entry "$src" "$path" "$fstype" "$opts"
 
-    current_src="$(findmnt -rn -M "$path" -o SOURCE 2>/dev/null || true)"
-    # findmnt reports the resolved device (/dev/sdX), not the
+    # Resolve active mount source without relying on findmnt -M (not present in
+    # RHEL 7 util-linux 2.23).
+    current_src=""
+    if mountpoint -q "$path"; then
+      current_src="$(findmnt -rn -o SOURCE --target "$path" 2>/dev/null || awk -v mp="$path" '$2 == mp { print $1; exit }' /proc/mounts 2>/dev/null || true)"
+    fi
+    # findmnt / /proc/mounts reports the resolved device (/dev/sdX), not the
     # /dev/disk/azure/... symlink we were given, so compare resolved paths.
     if [[ -n "$current_src" && "$(readlink -f "$current_src")" == "$(readlink -f "$src")" ]]; then
       # A pending marker (written when fstab changes, cleared once the remount

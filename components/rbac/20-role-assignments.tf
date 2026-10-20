@@ -27,6 +27,15 @@ resource "azurerm_role_assignment" "app_kv_secrets_user" {
   principal_id         = each.value.identity[0].principal_id
 }
 
+# The core key vault uses access policies rather than RBAC; Get and List are the Key Vault Secrets User equivalent.
+resource "azurerm_key_vault_access_policy" "app_core_kv_secrets_user" {
+  for_each           = data.azurerm_virtual_machine.app_vms
+  key_vault_id       = data.azurerm_key_vault.core.id
+  tenant_id          = data.azurerm_client_config.current.tenant_id
+  object_id          = each.value.identity[0].principal_id
+  secret_permissions = ["Get", "List"]
+}
+
 resource "azurerm_role_assignment" "acr_pull" {
   for_each             = data.azurerm_virtual_machine.docker_vms
   scope                = var.container_registry_id

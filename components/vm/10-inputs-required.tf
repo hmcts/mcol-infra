@@ -18,7 +18,7 @@ variable "web_vms" {
     availability_zone     = string
     subnet_name           = string
     private_ip            = string
-    size                  = optional(string, "Standard_D2s_v6")
+    size                  = optional(string, "Standard_D2ds_v5")
     install_xdr_agent     = optional(bool, false)
     install_xdr_collector = optional(bool, false)
     install_docker        = optional(bool, true)
@@ -31,7 +31,7 @@ variable "app_vms" {
     availability_zone     = string
     subnet_name           = string
     private_ip            = string
-    size                  = optional(string, "Standard_D4s_v6")
+    size                  = optional(string, "Standard_D4ds_v5")
     install_xdr_agent     = optional(bool, false)
     install_xdr_collector = optional(bool, false)
     install_docker        = optional(bool, true)
@@ -44,7 +44,7 @@ variable "db_vms" {
     availability_zone     = string
     subnet_name           = string
     private_ip            = string
-    size                  = optional(string, "Standard_E4-2s_v5")
+    size                  = optional(string, "Standard_E4-2ds_v5")
     install_xdr_agent     = optional(bool, false)
     install_xdr_collector = optional(bool, false)
     image = optional(object({
@@ -73,8 +73,8 @@ variable "cnp_vault_sub" {
   description = "Subscription for the CNP key vault"
 }
 
-variable "fileshare_storage_account_key" {
+variable "storheritage003_build_share_key" {
   type        = string
   sensitive   = true
-  description = "Storage account key for the legacy storheritage003/build Azure Files share. Supply via the secure TF_VAR_fileshare_storage_account_key pipeline variable."
+  description = "Storage account key for the build file share on the legacy storheritage003 storage account (heritage INTSVC subscription). Supply via the secure TF_VAR_storheritage003_build_share_key variable in the environment's variable group."
 }

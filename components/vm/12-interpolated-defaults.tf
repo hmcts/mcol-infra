@@ -80,7 +80,7 @@ module "ctags" {
 
 data "azurerm_subnet" "subnets" {
   for_each             = local.virtual_machines
-  name                 = "mcol-${each.value.subnet_name}-${var.env}"
+  name                 = "MCOL-${title(each.value.subnet_name)}-${upper(local.env_map[var.env])}"
   virtual_network_name = "vnet-${local.env_map[var.env]}-ext-01"
   resource_group_name  = "ExternalSpoke-rg"
 }
