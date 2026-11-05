@@ -181,6 +181,16 @@ application_key_vault = {
 container_registry_id = "/subscriptions/5ca62022-6aa2-4cee-aaa7-e7536c8d566c/resourceGroups/sds-acr-rg/providers/Microsoft.ContainerRegistry/registries/sdshmctspublic"
 
 web_users = {
+  "DTS MCOL VM Login (env:production)" = {
+    is_group               = true
+    group_security_enabled = true
+    role_type              = "user"
+  }
+  "DTS MCOL VM Admin Login (env:production)" = {
+    is_group               = true
+    group_security_enabled = true
+    role_type              = "admin"
+  }
   "DTS Platform Operations SC" = {
     is_group               = true
     group_security_enabled = true
@@ -203,6 +213,16 @@ web_users = {
 }
 
 app_users = {
+  "DTS MCOL VM Login (env:production)" = {
+    is_group               = true
+    group_security_enabled = true
+    role_type              = "user"
+  }
+  "DTS MCOL VM Admin Login (env:production)" = {
+    is_group               = true
+    group_security_enabled = true
+    role_type              = "admin"
+  }
   "DTS Platform Operations SC" = {
     is_group               = true
     group_security_enabled = true
@@ -225,6 +245,16 @@ app_users = {
 }
 
 db_users = {
+  "DTS MCOL VM Login (env:production)" = {
+    is_group               = true
+    group_security_enabled = true
+    role_type              = "user"
+  }
+  "DTS MCOL VM Admin Login (env:production)" = {
+    is_group               = true
+    group_security_enabled = true
+    role_type              = "admin"
+  }
   "DTS Platform Operations SC" = {
     is_group               = true
     group_security_enabled = true

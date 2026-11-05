@@ -169,20 +169,17 @@ application_key_vault = {
 container_registry_id = "/subscriptions/5ca62022-6aa2-4cee-aaa7-e7536c8d566c/resourceGroups/sds-acr-rg/providers/Microsoft.ContainerRegistry/registries/sdshmctspublic"
 
 web_users = {
+  "DTS MCOL VM Login (env:staging)" = {
+    is_group               = true
+    group_security_enabled = true
+    role_type              = "user"
+  }
+  "DTS MCOL VM Admin Login (env:staging)" = {
+    is_group               = true
+    group_security_enabled = true
+    role_type              = "admin"
+  }
   "DTS Platform Operations" = {
-    is_group               = true
-    group_security_enabled = true
-    role_type              = "admin"
-  }
-  # Legacy V1/CGI admin groups (aadDcAdminsV1/aadDcAdminsCGI), granted sudo via
-  # Virtual Machine Administrator Login — the Entra ID equivalent of the legacy
-  # sudoers entries.
-  "dcd_heritage_nle_mgmt_admins_v1" = {
-    is_group               = true
-    group_security_enabled = true
-    role_type              = "admin"
-  }
-  "dcd_heritage_nle_mgmt_admins_cgi" = {
     is_group               = true
     group_security_enabled = true
     role_type              = "admin"
@@ -190,20 +187,17 @@ web_users = {
 }
 
 app_users = {
+  "DTS MCOL VM Login (env:staging)" = {
+    is_group               = true
+    group_security_enabled = true
+    role_type              = "user"
+  }
+  "DTS MCOL VM Admin Login (env:staging)" = {
+    is_group               = true
+    group_security_enabled = true
+    role_type              = "admin"
+  }
   "DTS Platform Operations" = {
-    is_group               = true
-    group_security_enabled = true
-    role_type              = "admin"
-  }
-  # Legacy V1/CGI admin groups (aadDcAdminsV1/aadDcAdminsCGI), granted sudo via
-  # Virtual Machine Administrator Login — the Entra ID equivalent of the legacy
-  # sudoers entries.
-  "dcd_heritage_nle_mgmt_admins_v1" = {
-    is_group               = true
-    group_security_enabled = true
-    role_type              = "admin"
-  }
-  "dcd_heritage_nle_mgmt_admins_cgi" = {
     is_group               = true
     group_security_enabled = true
     role_type              = "admin"
@@ -211,20 +205,17 @@ app_users = {
 }
 
 db_users = {
+  "DTS MCOL VM Login (env:staging)" = {
+    is_group               = true
+    group_security_enabled = true
+    role_type              = "user"
+  }
+  "DTS MCOL VM Admin Login (env:staging)" = {
+    is_group               = true
+    group_security_enabled = true
+    role_type              = "admin"
+  }
   "DTS Platform Operations" = {
-    is_group               = true
-    group_security_enabled = true
-    role_type              = "admin"
-  }
-  # Legacy V1/CGI admin groups (aadDcAdminsV1/aadDcAdminsCGI), granted sudo via
-  # Virtual Machine Administrator Login — the Entra ID equivalent of the legacy
-  # sudoers entries.
-  "dcd_heritage_nle_mgmt_admins_v1" = {
-    is_group               = true
-    group_security_enabled = true
-    role_type              = "admin"
-  }
-  "dcd_heritage_nle_mgmt_admins_cgi" = {
     is_group               = true
     group_security_enabled = true
     role_type              = "admin"

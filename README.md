@@ -80,7 +80,7 @@ Traffic cutover and rollback are controlled by where the upstream callers point,
 
 The VMs can be accessed over the HMCTS Jumpboxes or bastions using the az CLI with the SSH extension. They use Azure Entra ID to authenticate, so use `az ssh` rather than plain `ssh`. Local admin credentials are stored in `mcol-kv-{env}`.
 
-Admin login (with sudo) is granted per tier via the `rbac` component to `DTS Platform Operations` (`SC` in prod) and the legacy V1/CGI admin groups carried over from the Ansible sudoers setup (`aadDcAdminsV1`/`aadDcAdminsCGI`): `dcd_heritage_nle_mgmt_admins_v1`/`_cgi` in stg, `DTS Heritage Mgmt Prod V1 Admins`/`DTS Heritage Mgmt Prod CGI Admins` in prod.
+The `rbac` component grants VM user login to `DTS MCOL VM Login` and VM administrator login (with sudo) to `DTS MCOL VM Admin Login`, using the environment-scoped groups `DTS MCOL VM Login (env:staging)` / `DTS MCOL VM Admin Login (env:staging)` in stg and `DTS MCOL VM Login (env:production)` / `DTS MCOL VM Admin Login (env:production)` in prod. Existing platform operations and legacy V1/CGI admin grants are also retained.
 
 ## Backup Policy
 
