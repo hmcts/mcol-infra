@@ -27,6 +27,14 @@ resource "azurerm_role_assignment" "app_kv_secrets_user" {
   principal_id         = each.value.identity[0].principal_id
 }
 
+# Group access to all data-plane objects in the RBAC-enabled application key vault.
+resource "azurerm_role_assignment" "app_kv_data_plane_admin" {
+  for_each             = var.application_key_vault == null ? toset([]) : var.key_vault_data_plane_groups
+  scope                = data.azurerm_key_vault.application[0].id
+  role_definition_name = "Key Vault Administrator"
+  principal_id         = data.azuread_group.key_vault_data_plane_groups[each.value].object_id
+}
+
 # The core key vault uses access policies rather than RBAC; Get and List are the Key Vault Secrets User equivalent.
 resource "azurerm_key_vault_access_policy" "app_core_kv_secrets_user" {
   for_each           = data.azurerm_virtual_machine.app_vms

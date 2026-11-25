@@ -178,6 +178,10 @@ application_key_vault = {
   resource_group_name = "PMCOL-RG"
 }
 
+key_vault_data_plane_groups = [
+  "DTS MCOL KV Contributors (env:production)"
+]
+
 container_registry_id = "/subscriptions/5ca62022-6aa2-4cee-aaa7-e7536c8d566c/resourceGroups/sds-acr-rg/providers/Microsoft.ContainerRegistry/registries/sdshmctspublic"
 
 web_users = {
@@ -192,20 +196,6 @@ web_users = {
     role_type              = "admin"
   }
   "DTS Platform Operations SC" = {
-    is_group               = true
-    group_security_enabled = true
-    role_type              = "admin"
-  }
-  # Legacy V1/CGI admin groups (aadDcAdminsV1/aadDcAdminsCGI), granted sudo via
-  # Virtual Machine Administrator Login — the Entra ID equivalent of the legacy
-  # sudoers entries. (@HMCTS.NET suffix and sudoers space-escaping from the
-  # Ansible vars are not part of the Entra display names.)
-  "DTS Heritage Mgmt Prod V1 Admins" = {
-    is_group               = true
-    group_security_enabled = true
-    role_type              = "admin"
-  }
-  "DTS Heritage Mgmt Prod CGI Admins" = {
     is_group               = true
     group_security_enabled = true
     role_type              = "admin"
@@ -228,20 +218,6 @@ app_users = {
     group_security_enabled = true
     role_type              = "admin"
   }
-  # Legacy V1/CGI admin groups (aadDcAdminsV1/aadDcAdminsCGI), granted sudo via
-  # Virtual Machine Administrator Login — the Entra ID equivalent of the legacy
-  # sudoers entries. (@HMCTS.NET suffix and sudoers space-escaping from the
-  # Ansible vars are not part of the Entra display names.)
-  "DTS Heritage Mgmt Prod V1 Admins" = {
-    is_group               = true
-    group_security_enabled = true
-    role_type              = "admin"
-  }
-  "DTS Heritage Mgmt Prod CGI Admins" = {
-    is_group               = true
-    group_security_enabled = true
-    role_type              = "admin"
-  }
 }
 
 db_users = {
@@ -256,20 +232,6 @@ db_users = {
     role_type              = "admin"
   }
   "DTS Platform Operations SC" = {
-    is_group               = true
-    group_security_enabled = true
-    role_type              = "admin"
-  }
-  # Legacy V1/CGI admin groups (aadDcAdminsV1/aadDcAdminsCGI), granted sudo via
-  # Virtual Machine Administrator Login — the Entra ID equivalent of the legacy
-  # sudoers entries. (@HMCTS.NET suffix and sudoers space-escaping from the
-  # Ansible vars are not part of the Entra display names.)
-  "DTS Heritage Mgmt Prod V1 Admins" = {
-    is_group               = true
-    group_security_enabled = true
-    role_type              = "admin"
-  }
-  "DTS Heritage Mgmt Prod CGI Admins" = {
     is_group               = true
     group_security_enabled = true
     role_type              = "admin"
