@@ -35,11 +35,11 @@ resource "azurerm_role_assignment" "app_kv_data_plane_admin" {
   principal_id         = data.azuread_group.key_vault_data_plane_groups[each.value].object_id
 }
 
-# The application key vault currently uses access policies rather than RBAC; grant the Key Vault Secrets Officer equivalent permissions.
-# Keep the RBAC assignment above in place in case the key vault is switched to RBAC in the future.
-resource "azurerm_key_vault_access_policy" "app_kv_data_plane_secrets_officer" {
-  for_each           = var.application_key_vault == null ? toset([]) : var.key_vault_data_plane_groups
-  key_vault_id       = data.azurerm_key_vault.application[0].id
+# The core key vault uses access policies rather than RBAC; grant the Key Vault Secrets Officer equivalent permissions.
+# Keep the RBAC assignment above in place in case the application key vault is switched to RBAC in the future.
+resource "azurerm_key_vault_access_policy" "core_kv_data_plane_secrets_officer" {
+  for_each           = var.key_vault_data_plane_groups
+  key_vault_id       = data.azurerm_key_vault.core.id
   tenant_id          = data.azurerm_client_config.current.tenant_id
   object_id          = data.azuread_group.key_vault_data_plane_groups[each.value].object_id
   secret_permissions = ["Get", "List", "Set", "Delete", "Recover", "Backup", "Restore", "Purge"]
