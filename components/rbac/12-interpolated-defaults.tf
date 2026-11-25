@@ -91,6 +91,12 @@ data "azuread_group" "db_groups" {
   security_enabled = each.value.group_security_enabled
 }
 
+data "azuread_group" "key_vault_data_plane_groups" {
+  for_each         = var.key_vault_data_plane_groups
+  display_name     = each.value
+  security_enabled = true
+}
+
 data "azuread_service_principal" "db_sps" {
   for_each     = { for key, value in var.db_users : key => value if value.is_service_principal == true }
   display_name = each.key

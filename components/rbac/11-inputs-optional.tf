@@ -70,6 +70,12 @@ variable "application_key_vault" {
   default     = null
 }
 
+variable "key_vault_data_plane_groups" {
+  type        = set(string)
+  description = "Security-enabled Entra group display names granted Key Vault Secrets Officer permissions (via access policy and RBAC) on the application key vault."
+  default     = []
+}
+
 variable "container_registry_id" {
   type        = string
   description = "Resource ID of the HMCTS ACR the Docker hosts pull MCOL images from. AcrPull is granted to web and application VMs when set."
