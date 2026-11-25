@@ -166,6 +166,10 @@ application_key_vault = {
   resource_group_name = "NMCOL-RG"
 }
 
+key_vault_data_plane_groups = [
+  "DTS MCOL KV Secrets Officer (env:staging)"
+]
+
 container_registry_id = "/subscriptions/5ca62022-6aa2-4cee-aaa7-e7536c8d566c/resourceGroups/sds-acr-rg/providers/Microsoft.ContainerRegistry/registries/sdshmctspublic"
 
 web_users = {
